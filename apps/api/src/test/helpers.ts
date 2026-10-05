@@ -9,6 +9,8 @@ import { createApp, type AppDeps } from '../app';
 import { sessionCookie } from '../auth/middleware';
 import type { ExactCache } from '../cache/exact';
 import type { Database } from '../db/client';
+import { MemoryEventBus, type EventBus } from '../lib/events';
+import { RequestRecorder } from '../metering/recorder';
 import * as schema from '../db/schema';
 import { Embedder } from '../semantic/embeddings';
 import { createSemanticStore } from '../semantic/store';
@@ -45,6 +47,9 @@ export interface RecordedCall {
   body: Record<string, unknown>;
 }
 
+/** Token count the fake provider reports for every embeddings call. */
+export const EMBED_TOKENS = 8;
+
 /** Embeddings stand-in: maps an input text to its vector, or null for "unknown". */
 export type EmbedFn = (text: string) => number[] | null;
 
@@ -65,7 +70,11 @@ export function fakeFetch(
       embedCalls.push(call);
       const vector = state.embed?.(String(call.body.input)) ?? null;
       return vector
-        ? json({ object: 'list', data: [{ object: 'embedding', index: 0, embedding: vector }] })
+        ? json({
+            object: 'list',
+            data: [{ object: 'embedding', index: 0, embedding: vector }],
+            usage: { prompt_tokens: EMBED_TOKENS, total_tokens: EMBED_TOKENS },
+          })
         : json({ error: { message: 'model not found' } }, 404);
     }
     calls.push(call);
@@ -107,6 +116,9 @@ export interface TestAppOptions extends Partial<Pick<AppDeps, 'checks' | 'health
   cache?: ExactCache;
   maxRetries?: number;
   production?: boolean;
+  events?: EventBus;
+  recorder?: RequestRecorder;
+  shutdown?: AbortSignal;
 }
 
 export type TestApp = ReturnType<typeof createApp>;
@@ -114,6 +126,8 @@ export type TestApp = ReturnType<typeof createApp>;
 export function buildApp(options: TestAppOptions): TestApp {
   const { db } = options;
   const production = options.production ?? false;
+  const cookie = sessionCookie(production);
+  const events = options.events ?? new MemoryEventBus();
   const providers = new ProviderStore(db, randomBytes(32));
   const upstream = new UpstreamClient({
     timeoutMs: 1_000,
@@ -131,13 +145,21 @@ export function buildApp(options: TestAppOptions): TestApp {
       semantic: createSemanticStore(db, silentLogger),
       embedder: new Embedder(upstream, silentLogger),
       upstream,
+      recorder: options.recorder ?? new RequestRecorder(db, events, silentLogger),
     },
     dashboard: {
       db,
       providers,
-      cookie: sessionCookie(production),
+      cookie,
       sessionTtlDays: 30,
       production,
+    },
+    analytics: {
+      db,
+      cookie,
+      events,
+      shutdown: options.shutdown ?? new AbortController().signal,
+      heartbeatMs: 50,
     },
     ...(options.healthTimeoutMs !== undefined && { healthTimeoutMs: options.healthTimeoutMs }),
   });

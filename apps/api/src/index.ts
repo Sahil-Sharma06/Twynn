@@ -8,7 +8,10 @@ import { loadConfig } from './config';
 import { createDb } from './db/client';
 import { parseEncryptionKey } from './lib/crypto';
 import { createLogger } from './lib/logger';
+import { createRedisEventBus } from './lib/events';
 import { createRedis } from './lib/redis';
+import { deleteOldLogs } from './metering/analytics';
+import { RequestRecorder } from './metering/recorder';
 import { Embedder } from './semantic/embeddings';
 import { createSemanticStore } from './semantic/store';
 import { ProviderStore } from './services/providers';
@@ -20,10 +23,15 @@ const production = config.NODE_ENV === 'production';
 const logger = createLogger(config);
 const { db, pool } = createDb(config.TWYNN_DB_URL, logger);
 const redis = createRedis(config.TWYNN_REDIS_URL, logger);
-await redis.connect();
+const subscriber = createRedis(config.TWYNN_REDIS_URL, logger);
+await Promise.all([redis.connect(), subscriber.connect()]);
+const events = await createRedisEventBus(redis, subscriber, logger);
+const shutdownController = new AbortController();
 
 const providers = new ProviderStore(db, parseEncryptionKey(config.TWYNN_ENCRYPTION_KEY));
 const semantic = createSemanticStore(db, logger);
+const recorder = new RequestRecorder(db, events, logger);
+const cookie = sessionCookie(production);
 
 const app = createApp({
   logger,
@@ -40,14 +48,16 @@ const app = createApp({
       timeoutMs: config.TWYNN_UPSTREAM_TIMEOUT_MS,
       maxRetries: config.TWYNN_UPSTREAM_MAX_RETRIES,
     }),
+    recorder,
   },
   dashboard: {
     db,
     providers,
-    cookie: sessionCookie(production),
+    cookie,
     sessionTtlDays: config.TWYNN_SESSION_TTL_DAYS,
     production,
   },
+  analytics: { db, cookie, events, shutdown: shutdownController.signal },
   checks: {
     postgres: async () => {
       await db.execute(sql`select 1`);
@@ -62,13 +72,15 @@ const server = serve({ fetch: app.fetch, port: config.TWYNN_API_PORT }, ({ port 
   logger.info({ port }, `${PRODUCT_NAME} API listening`);
 });
 
-// Expired twin entries are already ignored by lookups; this just reclaims the space.
+// Expired twin entries are already ignored by lookups; this reclaims their space and enforces
+// request log retention.
 const CLEANUP_INTERVAL_MS = 10 * 60_000;
 const cleanup = setInterval(() => {
-  semantic
-    .deleteExpired()
-    .then((count) => count > 0 && logger.info({ count }, 'deleted expired semantic entries'))
-    .catch((err) => logger.warn({ err }, 'semantic cleanup failed'));
+  Promise.all([semantic.deleteExpired(), deleteOldLogs(db, config.TWYNN_LOG_RETENTION_DAYS)])
+    .then(([entries, logs]) => {
+      if (entries || logs) logger.info({ entries, logs }, 'cleanup removed expired rows');
+    })
+    .catch((err) => logger.warn({ err }, 'cleanup failed'));
 }, CLEANUP_INTERVAL_MS).unref();
 
 let shuttingDown = false;
@@ -82,8 +94,10 @@ async function shutdown(signal: string): Promise<void> {
     process.exit(1);
   }, config.TWYNN_SHUTDOWN_TIMEOUT_MS).unref();
 
+  shutdownController.abort(); // ends open event streams
   await new Promise<void>((resolve) => server.close(() => resolve()));
-  await Promise.allSettled([pool.end(), redis.quit()]);
+  await recorder.flush();
+  await Promise.allSettled([pool.end(), redis.quit(), subscriber.quit()]);
   clearTimeout(force);
   logger.info('shutdown complete');
 }

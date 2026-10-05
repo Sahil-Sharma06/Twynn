@@ -24,6 +24,10 @@ const client = new OpenAI({ baseURL: 'http://localhost:3000/v1', apiKey: 'twynn_
 
 Each response carries `X-Twynn-Cache` (`HIT`, `MISS`, `BYPASS`) and `X-Twynn-Cache-Layer` (`exact`, `twin`, `upstream`). Twin hits also carry `X-Twynn-Match-Score`, the cosine similarity to the stored prompt. Twin threshold, TTL, embeddings model and the twin-layer switch are per-workspace settings (`/api/settings`).
 
+## Analytics
+
+Every gateway request is recorded with its cache layer, latency, provider-reported token counts and match score. Cost saved is an **estimate** computed from those token counts and the pricing table in `packages/shared/src/pricing.ts` (edit it to match your provider; unpriced models are reported, never counted as free). The dashboard API exposes `/api/analytics/{summary,timeseries,models}`, `/api/requests` and a live stream at `/api/events` (Server-Sent Events).
+
 ## Layout
 
 | Path              | Purpose                                         |

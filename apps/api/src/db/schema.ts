@@ -10,6 +10,7 @@ import {
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { CACHE_LAYER, CACHE_STATUS } from '@twynn/shared';
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).defaultNow().notNull();
 
@@ -129,4 +130,35 @@ export const semanticEntries = pgTable(
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   },
   (t) => [index().on(t.workspaceId, t.scopeHash, t.dimensions), index().on(t.expiresAt)],
+);
+
+/** One row per authenticated gateway request. The source of every number the dashboard shows. */
+export const requestLogs = pgTable(
+  'request_logs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    keyId: uuid('key_id').references(() => gatewayKeys.id, { onDelete: 'set null' }),
+    // Millisecond precision so keyset cursors round-trip exactly through JavaScript Dates.
+    createdAt: timestamp('created_at', { withTimezone: true, precision: 3 }).defaultNow().notNull(),
+    model: text('model'),
+    /** Null when the request never reached the cache, e.g. it failed validation. */
+    layer: text('layer', { enum: CACHE_LAYER }),
+    status: text('status', { enum: CACHE_STATUS }),
+    statusCode: integer('status_code').notNull(),
+    latencyMs: integer('latency_ms').notNull(),
+    /** Token counts as reported by the provider (for hits: when the answer was first produced). */
+    promptTokens: integer('prompt_tokens'),
+    completionTokens: integer('completion_tokens'),
+    embeddingModel: text('embedding_model'),
+    embeddingTokens: integer('embedding_tokens'),
+    matchScore: doublePrecision('match_score'),
+    /** Final user message, truncated. */
+    promptPreview: text('prompt_preview'),
+    /** For twin hits: the stored prompt that matched, truncated. */
+    matchedPrompt: text('matched_prompt'),
+  },
+  (t) => [index().on(t.workspaceId, t.createdAt.desc(), t.id.desc()), index().on(t.createdAt)],
 );

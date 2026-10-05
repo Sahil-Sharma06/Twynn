@@ -6,8 +6,9 @@ import { sha256 } from '../lib/crypto';
 import { GatewayError, normalizeUpstreamError } from '../lib/errors';
 import { parseJsonBody } from '../lib/validation';
 import { chatCompletionRequest } from '../proxy/schema';
+import { usageFrom, type MeterDraft, type RequestRecorder } from '../metering/recorder';
 import type { Embedder } from '../semantic/embeddings';
-import { semanticQuery } from '../semantic/request';
+import { finalMessageText, semanticQuery } from '../semantic/request';
 import type { SemanticStore } from '../semantic/store';
 import type { Tenant, TenantResolver } from '../services/tenancy';
 import type { AppEnv } from '../types';
@@ -19,6 +20,7 @@ export interface ChatDeps {
   semantic: SemanticStore;
   embedder: Embedder;
   upstream: UpstreamClient;
+  recorder: RequestRecorder;
 }
 
 async function authenticate(c: Context, resolveTenant: TenantResolver): Promise<Tenant> {
@@ -76,12 +78,37 @@ export function chatRoutes({
   semantic,
   embedder,
   upstream,
+  recorder,
 }: ChatDeps): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
 
+  // Metering: every authenticated request is recorded once its response (or error) is ready.
+  routes.use('/chat/completions', async (c, next) => {
+    const started = performance.now();
+    const meter: MeterDraft = {};
+    c.set('meter', meter);
+    await next();
+    const { workspaceId } = meter;
+    if (!workspaceId) return; // unauthenticated: nothing to attribute it to
+    recorder.record({
+      ...meter,
+      workspaceId,
+      layer: (c.res.headers.get(CACHE_HEADERS.layer) as CacheLayer | null) ?? null,
+      status: (c.res.headers.get(CACHE_HEADERS.status) as CacheStatus | null) ?? null,
+      statusCode: c.res.status,
+      latencyMs: Math.round(performance.now() - started),
+    });
+  });
+
   routes.post('/chat/completions', async (c) => {
+    const meter = c.get('meter');
     const tenant = await authenticate(c, resolveTenant);
+    meter.workspaceId = tenant.workspaceId;
+    meter.keyId = tenant.keyId;
     const request = await parseJsonBody(c, chatCompletionRequest);
+    meter.model = request.model;
+    const preview = finalMessageText(request);
+    if (preview !== undefined) meter.promptPreview = preview;
     const { provider, settings } = tenant;
     if (!provider) {
       throw new GatewayError(
@@ -117,6 +144,7 @@ export function chatRoutes({
     const cached = await cache.get(key);
     if (cached !== null) {
       setCacheHeaders(c, 'HIT', 'exact');
+      Object.assign(meter, usageFrom(cached));
       return c.body(cached, 200, { 'content-type': 'application/json' });
     }
 
@@ -133,16 +161,24 @@ export function chatRoutes({
           signal: c.req.raw.signal,
         })
       : null;
+    if (embedding) {
+      meter.embeddingModel = settings.embeddingModel;
+      if (embedding.tokens !== null) meter.embeddingTokens = embedding.tokens;
+    }
     if (query && embedding) {
       const twin = await semantic.findTwin({
         workspaceId: tenant.workspaceId,
         scopeHash: query.scopeHash,
-        embedding,
+        embedding: embedding.vector,
         threshold: settings.twinThreshold,
       });
       if (twin) {
         setCacheHeaders(c, 'HIT', 'twin');
         c.header(CACHE_HEADERS.matchScore, twin.score.toFixed(4));
+        Object.assign(meter, usageFrom(twin.response), {
+          matchScore: twin.score,
+          matchedPrompt: twin.prompt,
+        });
         return c.body(twin.response, 200, { 'content-type': 'application/json' });
       }
     }
@@ -150,6 +186,7 @@ export function chatRoutes({
     setCacheHeaders(c, 'MISS', 'upstream');
     const res = await upstream.postBuffered(upstreamRequest);
     if (res.status !== 200) throw normalizeUpstreamError(res.status, res.text);
+    Object.assign(meter, usageFrom(res.text));
     if (isCacheableCompletion(res.text)) {
       await cache.set(key, res.text, settings.ttlSeconds);
       if (query && embedding) {
@@ -158,7 +195,7 @@ export function chatRoutes({
           scopeHash: query.scopeHash,
           model: request.model,
           prompt: query.text,
-          embedding,
+          embedding: embedding.vector,
           response: res.text,
           ttlSeconds: settings.ttlSeconds,
         });

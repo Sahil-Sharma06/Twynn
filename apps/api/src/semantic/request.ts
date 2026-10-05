@@ -24,6 +24,18 @@ function textContent(content: unknown): string | null {
   return parts.join('\n');
 }
 
+/** Human-readable text of the final message (text parts only), for request logs. */
+export function finalMessageText(request: ChatCompletionRequest): string | undefined {
+  const content = request.messages.at(-1)?.content;
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return undefined;
+  const text = content
+    .filter((p) => p.type === 'text' && typeof p.text === 'string')
+    .map((p) => p.text as string)
+    .join('\n');
+  return text || undefined;
+}
+
 /**
  * Describes how a request may be matched semantically, or returns null when it
  * must not be. Only the final user message is compared by meaning. The provider,

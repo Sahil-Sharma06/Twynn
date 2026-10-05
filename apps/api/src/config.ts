@@ -22,6 +22,7 @@ const envSchema = z.object({
   TWYNN_UPSTREAM_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
   TWYNN_UPSTREAM_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(2),
   /** Embeddings calls sit on the request path of every exact miss, so they get a tighter budget. */
+  TWYNN_LOG_RETENTION_DAYS: z.coerce.number().int().min(1).max(3650).default(90),
   TWYNN_EMBEDDING_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
 });
 

@@ -5,6 +5,7 @@ import { CACHE_HEADERS, PRODUCT_NAME } from '@twynn/shared';
 import type { Logger } from 'pino';
 import { csrfGuard } from './auth/middleware';
 import { GatewayError } from './lib/errors';
+import { analyticsRoutes, type AnalyticsDeps } from './routes/analytics';
 import { chatRoutes, type ChatDeps } from './routes/chat';
 import { dashboardRoutes, type DashboardDeps } from './routes/dashboard';
 import type { AppEnv } from './types';
@@ -17,6 +18,7 @@ export interface AppDeps {
   checks: Record<string, HealthCheck>;
   chat: ChatDeps;
   dashboard: DashboardDeps;
+  analytics: AnalyticsDeps;
   webOrigin: string;
   healthTimeoutMs?: number;
 }
@@ -36,6 +38,7 @@ export function createApp({
   checks,
   chat,
   dashboard,
+  analytics,
   webOrigin,
   healthTimeoutMs = 2_000,
 }: AppDeps): Hono<AppEnv> {
@@ -95,6 +98,7 @@ export function createApp({
   app.route('/v1', chatRoutes(chat));
   app.use('/api/*', limitBody, csrfGuard(webOrigin));
   app.route('/api', dashboardRoutes(dashboard));
+  app.route('/api', analyticsRoutes(analytics));
 
   app.notFound((c) =>
     c.json(
