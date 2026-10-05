@@ -1,13 +1,12 @@
 {
   "name": "@twynn/shared",
-  "version": "1.0.0",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch"
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
   },
-  "devDependencies": {
-    "typescript": "^5.2.2"
+  "scripts": {
+    "test": "vitest run"
   }
 }
