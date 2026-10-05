@@ -10,6 +10,8 @@ import { sessionCookie } from '../auth/middleware';
 import type { ExactCache } from '../cache/exact';
 import type { Database } from '../db/client';
 import * as schema from '../db/schema';
+import { Embedder } from '../semantic/embeddings';
+import { createSemanticStore } from '../semantic/store';
 import { ProviderStore } from '../services/providers';
 import { createTenantResolver } from '../services/tenancy';
 import { UpstreamClient } from '../upstream/client';
@@ -43,19 +45,42 @@ export interface RecordedCall {
   body: Record<string, unknown>;
 }
 
-/** A fetch stand-in that records calls and answers from a queue of responders. */
+/** Embeddings stand-in: maps an input text to its vector, or null for "unknown". */
+export type EmbedFn = (text: string) => number[] | null;
+
+/**
+ * A fetch stand-in that records calls. Chat calls are answered from a queue of
+ * responders and recorded in `calls`; /embeddings calls go to `embed` (404 by
+ * default, which skips the twin layer) and are recorded in `embedCalls`.
+ */
 export function fakeFetch(
   ...responders: Array<(call: RecordedCall) => Response | Promise<Response>>
 ) {
   const calls: RecordedCall[] = [];
+  const embedCalls: RecordedCall[] = [];
+  const state: { embed: EmbedFn | null } = { embed: null };
   const impl = (async (input: string | URL | Request, init: RequestInit = {}) => {
     const call = { url: String(input), init, body: JSON.parse(String(init.body)) };
+    if (call.url.endsWith('/embeddings')) {
+      embedCalls.push(call);
+      const vector = state.embed?.(String(call.body.input)) ?? null;
+      return vector
+        ? json({ object: 'list', data: [{ object: 'embedding', index: 0, embedding: vector }] })
+        : json({ error: { message: 'model not found' } }, 404);
+    }
     calls.push(call);
     const responder = responders[Math.min(calls.length - 1, responders.length - 1)];
     if (!responder) throw new Error('fakeFetch has no responder');
     return responder(call);
   }) as typeof fetch;
-  return { impl, calls };
+  return {
+    impl,
+    calls,
+    embedCalls,
+    set embed(fn: EmbedFn | null) {
+      state.embed = fn;
+    },
+  };
 }
 
 export function completion(content: string, extra: Record<string, unknown> = {}) {
@@ -90,6 +115,12 @@ export function buildApp(options: TestAppOptions): TestApp {
   const { db } = options;
   const production = options.production ?? false;
   const providers = new ProviderStore(db, randomBytes(32));
+  const upstream = new UpstreamClient({
+    timeoutMs: 1_000,
+    maxRetries: options.maxRetries ?? 0,
+    sleep: async () => {},
+    ...(options.fetch && { fetch: options.fetch }),
+  });
   return createApp({
     logger: silentLogger,
     webOrigin: WEB_ORIGIN,
@@ -97,13 +128,9 @@ export function buildApp(options: TestAppOptions): TestApp {
     chat: {
       resolveTenant: createTenantResolver(db, providers, silentLogger),
       cache: options.cache ?? new MemoryCache(),
-      upstream: new UpstreamClient({
-        timeoutMs: 1_000,
-        maxRetries: options.maxRetries ?? 0,
-        sleep: async () => {},
-        ...(options.fetch && { fetch: options.fetch }),
-      }),
-      cacheTtlSeconds: 60,
+      semantic: createSemanticStore(db, silentLogger),
+      embedder: new Embedder(upstream, silentLogger),
+      upstream,
     },
     dashboard: {
       db,

@@ -6,6 +6,9 @@ import { sha256 } from '../lib/crypto';
 import { GatewayError, normalizeUpstreamError } from '../lib/errors';
 import { parseJsonBody } from '../lib/validation';
 import { chatCompletionRequest } from '../proxy/schema';
+import type { Embedder } from '../semantic/embeddings';
+import { semanticQuery } from '../semantic/request';
+import type { SemanticStore } from '../semantic/store';
 import type { Tenant, TenantResolver } from '../services/tenancy';
 import type { AppEnv } from '../types';
 import type { UpstreamClient } from '../upstream/client';
@@ -13,8 +16,9 @@ import type { UpstreamClient } from '../upstream/client';
 export interface ChatDeps {
   resolveTenant: TenantResolver;
   cache: ExactCache;
+  semantic: SemanticStore;
+  embedder: Embedder;
   upstream: UpstreamClient;
-  cacheTtlSeconds: number;
 }
 
 async function authenticate(c: Context, resolveTenant: TenantResolver): Promise<Tenant> {
@@ -69,15 +73,16 @@ export function isCacheableCompletion(text: string): boolean {
 export function chatRoutes({
   resolveTenant,
   cache,
+  semantic,
+  embedder,
   upstream,
-  cacheTtlSeconds,
 }: ChatDeps): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
 
   routes.post('/chat/completions', async (c) => {
     const tenant = await authenticate(c, resolveTenant);
     const request = await parseJsonBody(c, chatCompletionRequest);
-    const { provider } = tenant;
+    const { provider, settings } = tenant;
     if (!provider) {
       throw new GatewayError(
         400,
@@ -107,6 +112,7 @@ export function chatRoutes({
       return res.body ? c.body(res.body) : c.body(null);
     }
 
+    // Layer 1: exact match.
     const key = exactCacheKey(cacheScope(tenant.workspaceId, provider.baseUrl), request);
     const cached = await cache.get(key);
     if (cached !== null) {
@@ -114,10 +120,50 @@ export function chatRoutes({
       return c.body(cached, 200, { 'content-type': 'application/json' });
     }
 
+    // Layer 2: twin match on the final user message, within an exactly-matching scope.
+    const query = settings.semanticEnabled
+      ? semanticQuery(request, provider.baseUrl, settings.embeddingModel)
+      : null;
+    const embedding = query
+      ? await embedder.embed({
+          baseUrl: provider.baseUrl,
+          apiKey: provider.apiKey,
+          model: settings.embeddingModel,
+          text: query.text,
+          signal: c.req.raw.signal,
+        })
+      : null;
+    if (query && embedding) {
+      const twin = await semantic.findTwin({
+        workspaceId: tenant.workspaceId,
+        scopeHash: query.scopeHash,
+        embedding,
+        threshold: settings.twinThreshold,
+      });
+      if (twin) {
+        setCacheHeaders(c, 'HIT', 'twin');
+        c.header(CACHE_HEADERS.matchScore, twin.score.toFixed(4));
+        return c.body(twin.response, 200, { 'content-type': 'application/json' });
+      }
+    }
+
     setCacheHeaders(c, 'MISS', 'upstream');
     const res = await upstream.postBuffered(upstreamRequest);
     if (res.status !== 200) throw normalizeUpstreamError(res.status, res.text);
-    if (isCacheableCompletion(res.text)) await cache.set(key, res.text, cacheTtlSeconds);
+    if (isCacheableCompletion(res.text)) {
+      await cache.set(key, res.text, settings.ttlSeconds);
+      if (query && embedding) {
+        await semantic.insert({
+          workspaceId: tenant.workspaceId,
+          scopeHash: query.scopeHash,
+          model: request.model,
+          prompt: query.text,
+          embedding,
+          response: res.text,
+          ttlSeconds: settings.ttlSeconds,
+        });
+      }
+    }
     return c.body(res.text, 200, { 'content-type': 'application/json' });
   });
 

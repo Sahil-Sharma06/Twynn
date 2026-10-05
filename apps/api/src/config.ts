@@ -21,7 +21,8 @@ const envSchema = z.object({
   /** Time allowed for the upstream to start responding (headers, or the full body when not streaming). */
   TWYNN_UPSTREAM_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
   TWYNN_UPSTREAM_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(2),
-  TWYNN_EXACT_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(86_400),
+  /** Embeddings calls sit on the request path of every exact miss, so they get a tighter budget. */
+  TWYNN_EMBEDDING_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
 });
 
 export type Config = z.infer<typeof envSchema>;

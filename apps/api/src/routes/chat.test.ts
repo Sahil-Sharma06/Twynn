@@ -28,8 +28,9 @@ const body = {
 /** A fresh tenant with a connected provider and a gateway key. */
 async function setup(options: Omit<TestAppOptions, 'db'> = {}) {
   const app = buildApp({ db, ...options });
-  const { gatewayKey } = await new Browser(app).onboard(`${randomUUID()}@example.com`, 'sk-prov');
-  return { app, key: gatewayKey };
+  const browser = new Browser(app);
+  const { gatewayKey } = await browser.onboard(`${randomUUID()}@example.com`, 'sk-prov');
+  return { app, key: gatewayKey, browser };
 }
 
 describe('POST /v1/chat/completions', () => {
@@ -61,14 +62,15 @@ describe('POST /v1/chat/completions', () => {
     expect(call?.body).toEqual({ ...body, custom_field: 1 });
   });
 
-  it('caches with the configured TTL', async () => {
+  it('caches with the workspace TTL', async () => {
     const cache = new MemoryCache();
-    const { app, key } = await setup({
+    const { app, key, browser } = await setup({
       fetch: fakeFetch(() => json(completion('hi'))).impl,
       cache,
     });
+    await browser.call('PATCH', '/api/settings', { ttlSeconds: 120 });
     await gatewayPost(app, key, body);
-    expect([...cache.store.values()][0]?.ttlSeconds).toBe(60);
+    expect([...cache.store.values()][0]?.ttlSeconds).toBe(120);
   });
 
   it('does not cache upstream errors and passes them through in OpenAI shape', async () => {

@@ -1,12 +1,15 @@
+import type { CacheSettings } from '@twynn/shared';
 import type { Logger } from 'pino';
 import type { Database } from '../db/client';
 import { findActiveKey, touchKeyLastUsed } from './keys';
 import type { ProviderCredentials, ProviderStore } from './providers';
+import { getCacheSettings } from './settings';
 
 export interface Tenant {
   workspaceId: string;
   keyId: string;
   provider: ProviderCredentials | null;
+  settings: CacheSettings;
 }
 
 /** Maps a raw gateway key to its tenant, or null when the key is unknown or revoked. */
@@ -24,10 +27,10 @@ export function createTenantResolver(
     touchKeyLastUsed(db, key.id).catch((err) =>
       logger.warn({ err, keyId: key.id }, 'failed to update key last_used_at'),
     );
-    return {
-      workspaceId: key.workspaceId,
-      keyId: key.id,
-      provider: await providers.credentials(key.workspaceId),
-    };
+    const [provider, settings] = await Promise.all([
+      providers.credentials(key.workspaceId),
+      getCacheSettings(db, key.workspaceId),
+    ]);
+    return { workspaceId: key.workspaceId, keyId: key.id, provider, settings };
   };
 }
