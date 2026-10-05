@@ -22,7 +22,7 @@ Sign up, connect an OpenAI-compatible provider (base URL and key), and create a 
 const client = new OpenAI({ baseURL: 'http://localhost:3000/v1', apiKey: 'twynn_sk_…' });
 ```
 
-Each response carries `X-Twynn-Cache` (`HIT`, `MISS`, `BYPASS`) and `X-Twynn-Cache-Layer`.
+Each response carries `X-Twynn-Cache` (`HIT`, `MISS`, `BYPASS`) and `X-Twynn-Cache-Layer` (`exact`, `twin`, `upstream`). Twin hits also carry `X-Twynn-Match-Score`, the cosine similarity to the stored prompt. Twin threshold, TTL, embeddings model and the twin-layer switch are per-workspace settings (`/api/settings`).
 
 ## Layout
 
