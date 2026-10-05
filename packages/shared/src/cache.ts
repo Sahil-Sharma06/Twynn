@@ -13,3 +13,7 @@ export const CACHE_HEADERS = {
   /** Set on twin hits: cosine similarity between the request and the stored prompt. */
   matchScore: 'X-Twynn-Match-Score',
 } as const;
+
+/** Request header a caller sends to skip cache lookups and get (and store) a fresh answer. */
+export const CACHE_CONTROL_HEADER = 'X-Twynn-Cache-Control';
+export const CACHE_CONTROL_NO_CACHE = 'no-cache';

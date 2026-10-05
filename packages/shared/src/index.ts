@@ -12,4 +12,5 @@ export const VOCABULARY = {
 export * from './analytics';
 export * from './api';
 export * from './cache';
+export * from './entries';
 export * from './pricing';
