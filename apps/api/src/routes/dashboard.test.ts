@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
+import { DEFAULT_CACHE_SETTINGS } from '@twynn/shared';
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { Database } from '../db/client';
 import { gatewayKeys, providers, sessions, users } from '../db/schema';
@@ -272,5 +273,43 @@ describe('provider', () => {
     await b.call('PUT', '/api/provider', { baseUrl: 'https://a.example.com/v1', apiKey: 'sk-x' });
     expect((await b.call('DELETE', '/api/provider')).status).toBe(204);
     expect(await b.json('GET', '/api/provider')).toEqual({ provider: null });
+  });
+});
+
+describe('cache settings', () => {
+  it('starts from the shared defaults', async () => {
+    const b = browser();
+    await b.call('POST', '/api/auth/signup', { email: freshEmail(), password });
+    expect(await b.json('GET', '/api/settings')).toEqual({ settings: DEFAULT_CACHE_SETTINGS });
+  });
+
+  it('applies partial updates and keeps the rest', async () => {
+    const b = browser();
+    await b.call('POST', '/api/auth/signup', { email: freshEmail(), password });
+    await b.call('PATCH', '/api/settings', { twinThreshold: 0.9 });
+    const { settings } = await b.json('PATCH', '/api/settings', { ttlSeconds: 3600 });
+    expect(settings).toEqual({ ...DEFAULT_CACHE_SETTINGS, twinThreshold: 0.9, ttlSeconds: 3600 });
+  });
+
+  it.each([
+    [{ twinThreshold: 1.5 }, 'twinThreshold'],
+    [{ twinThreshold: 0.2 }, 'twinThreshold'],
+    [{ ttlSeconds: 10 }, 'ttlSeconds'],
+    [{ embeddingModel: '' }, 'embeddingModel'],
+  ])('rejects %j', async (patch, param) => {
+    const b = browser();
+    await b.call('POST', '/api/auth/signup', { email: freshEmail(), password });
+    const res = await b.call('PATCH', '/api/settings', patch);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: { param } });
+  });
+
+  it('keeps settings per workspace', async () => {
+    const a = browser();
+    const b = browser();
+    await a.call('POST', '/api/auth/signup', { email: freshEmail(), password });
+    await b.call('POST', '/api/auth/signup', { email: freshEmail(), password });
+    await a.call('PATCH', '/api/settings', { semanticEnabled: false });
+    expect((await b.json('GET', '/api/settings')).settings.semanticEnabled).toBe(true);
   });
 });

@@ -1,6 +1,12 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { createKeySchema, loginSchema, providerInputSchema, signupSchema } from '@twynn/shared';
+import {
+  cacheSettingsUpdateSchema,
+  createKeySchema,
+  loginSchema,
+  providerInputSchema,
+  signupSchema,
+} from '@twynn/shared';
 import {
   clearSessionCookie,
   readSessionToken,
@@ -15,6 +21,7 @@ import { parseJsonBody } from '../lib/validation';
 import { authenticate, signup } from '../services/accounts';
 import { createGatewayKey, listGatewayKeys, revokeGatewayKey } from '../services/keys';
 import type { ProviderStore } from '../services/providers';
+import { getCacheSettings, updateCacheSettings } from '../services/settings';
 import {
   createSession,
   deleteSession,
@@ -121,6 +128,18 @@ export function dashboardRoutes(deps: DashboardDeps): Hono<AppEnv> {
   routes.delete('/provider', authed, async (c) => {
     if (!(await providers.remove(c.get('session').workspace.id))) throw notFound('Provider');
     return c.body(null, 204);
+  });
+
+  // Cache settings
+  routes.get('/settings', authed, async (c) =>
+    c.json({ settings: await getCacheSettings(db, c.get('session').workspace.id) }),
+  );
+
+  routes.patch('/settings', authed, async (c) => {
+    const patch = await parseJsonBody(c, cacheSettingsUpdateSchema);
+    return c.json({
+      settings: await updateCacheSettings(db, c.get('session').workspace.id, patch),
+    });
   });
 
   return routes;

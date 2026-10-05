@@ -13,6 +13,8 @@ export type CacheLayer = (typeof CACHE_LAYER)[number];
 export const CACHE_HEADERS = {
   status: 'X-Twynn-Cache',
   layer: 'X-Twynn-Cache-Layer',
+  /** Set on twin hits: cosine similarity between the request and the stored prompt. */
+  matchScore: 'X-Twynn-Match-Score',
 } as const;
 
 /** Single source of truth for user-facing terminology. */
@@ -22,4 +24,5 @@ export const VOCABULARY = {
   matchScore: { label: 'Match score', technical: 'Cosine similarity' },
   twinThreshold: { label: 'Twin threshold', technical: 'Minimum cosine similarity for a twin hit' },
 } as const;
+
 export * from './api';

@@ -1,4 +1,15 @@
-import { index, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  customType,
+  doublePrecision,
+  index,
+  integer,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).defaultNow().notNull();
 
@@ -76,3 +87,46 @@ export const providers = pgTable('providers', {
   createdAt: createdAt(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
+
+/** Per-workspace cache settings. A missing row means DEFAULT_CACHE_SETTINGS apply. */
+export const workspaceSettings = pgTable('workspace_settings', {
+  workspaceId: uuid('workspace_id')
+    .primaryKey()
+    .references(() => workspaces.id, { onDelete: 'cascade' }),
+  semanticEnabled: boolean('semantic_enabled').notNull(),
+  twinThreshold: doublePrecision('twin_threshold').notNull(),
+  ttlSeconds: integer('ttl_seconds').notNull(),
+  embeddingModel: text('embedding_model').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+/**
+ * pgvector column without a fixed dimension, so any embeddings model works.
+ * Searches cast to the row's dimension to use the partial HNSW indexes.
+ */
+const vector = customType<{ data: number[]; driverData: string }>({
+  dataType: () => 'vector',
+  toDriver: (value) => `[${value.join(',')}]`,
+  fromDriver: (value) => JSON.parse(value) as number[],
+});
+
+/** Layer 2: prompts with their embeddings and the response served to twin requests. */
+export const semanticEntries = pgTable(
+  'semantic_entries',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    /** Hash of everything that must match exactly for a twin hit; see semantic/request. */
+    scopeHash: text('scope_hash').notNull(),
+    model: text('model').notNull(),
+    prompt: text('prompt').notNull(),
+    embedding: vector('embedding').notNull(),
+    dimensions: integer('dimensions').notNull(),
+    response: text('response').notNull(),
+    createdAt: createdAt(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [index().on(t.workspaceId, t.scopeHash, t.dimensions), index().on(t.expiresAt)],
+);
