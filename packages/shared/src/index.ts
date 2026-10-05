@@ -22,3 +22,4 @@ export const VOCABULARY = {
   matchScore: { label: 'Match score', technical: 'Cosine similarity' },
   twinThreshold: { label: 'Twin threshold', technical: 'Minimum cosine similarity for a twin hit' },
 } as const;
+export * from './api';
