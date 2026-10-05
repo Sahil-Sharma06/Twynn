@@ -69,6 +69,6 @@ describe('exactCacheKey', () => {
   });
 
   it('has a versioned, namespaced format', () => {
-    expect(key(base)).toMatch(/^twynn:v1:exact:scope-a:[0-9a-f]{64}$/);
+    expect(key(base)).toMatch(/^twynn:v2:exact:scope-a:[0-9a-f]{64}$/);
   });
 });

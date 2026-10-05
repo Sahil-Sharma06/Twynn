@@ -7,13 +7,14 @@ import { migrate } from 'drizzle-orm/pglite/migrator';
 import { pino } from 'pino';
 import { createApp, type AppDeps } from '../app';
 import { sessionCookie } from '../auth/middleware';
+import { EntryStore } from '../cache/entries';
 import type { ExactCache } from '../cache/exact';
+import { CacheManager } from '../cache/manager';
 import type { Database } from '../db/client';
 import { MemoryEventBus, type EventBus } from '../lib/events';
 import { RequestRecorder } from '../metering/recorder';
 import * as schema from '../db/schema';
 import { Embedder } from '../semantic/embeddings';
-import { createSemanticStore } from '../semantic/store';
 import { ProviderStore } from '../services/providers';
 import { createTenantResolver } from '../services/tenancy';
 import { UpstreamClient } from '../upstream/client';
@@ -38,6 +39,9 @@ export class MemoryCache implements ExactCache {
   }
   async set(key: string, value: string, ttlSeconds: number) {
     this.store.set(key, { value, ttlSeconds });
+  }
+  async del(keys: string[]) {
+    for (const key of keys) this.store.delete(key);
   }
 }
 
@@ -128,6 +132,7 @@ export function buildApp(options: TestAppOptions): TestApp {
   const production = options.production ?? false;
   const cookie = sessionCookie(production);
   const events = options.events ?? new MemoryEventBus();
+  const entries = new EntryStore(db, silentLogger);
   const providers = new ProviderStore(db, randomBytes(32));
   const upstream = new UpstreamClient({
     timeoutMs: 1_000,
@@ -135,15 +140,19 @@ export function buildApp(options: TestAppOptions): TestApp {
     sleep: async () => {},
     ...(options.fetch && { fetch: options.fetch }),
   });
+  const cache = new CacheManager(
+    options.cache ?? new MemoryCache(),
+    entries,
+    new Embedder(upstream, silentLogger),
+    silentLogger,
+  );
   return createApp({
     logger: silentLogger,
     webOrigin: WEB_ORIGIN,
     checks: options.checks ?? {},
     chat: {
       resolveTenant: createTenantResolver(db, providers, silentLogger),
-      cache: options.cache ?? new MemoryCache(),
-      semantic: createSemanticStore(db, silentLogger),
-      embedder: new Embedder(upstream, silentLogger),
+      cache,
       upstream,
       recorder: options.recorder ?? new RequestRecorder(db, events, silentLogger),
     },
@@ -161,6 +170,7 @@ export function buildApp(options: TestAppOptions): TestApp {
       shutdown: options.shutdown ?? new AbortController().signal,
       heartbeatMs: 50,
     },
+    cacheAdmin: { db, cookie, entries, cache },
     ...(options.healthTimeoutMs !== undefined && { healthTimeoutMs: options.healthTimeoutMs }),
   });
 }

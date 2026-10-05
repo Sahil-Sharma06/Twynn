@@ -17,6 +17,7 @@ import {
 } from '@twynn/shared';
 import type { Database } from '../db/client';
 import { requestLogs } from '../db/schema';
+import { decodeCursor, encodeCursor, escapeLike } from '../lib/pagination';
 import { toLogView } from './recorder';
 
 type Bucket = 'hour' | 'day';
@@ -280,17 +281,6 @@ export async function models(
     })
     .sort((a, b) => b.requests - a.requests);
 }
-
-const encodeCursor = (createdAt: Date, id: string) =>
-  Buffer.from(`${createdAt.toISOString()}|${id}`).toString('base64url');
-
-function decodeCursor(cursor: string): { createdAt: Date; id: string } | null {
-  const [iso, id] = Buffer.from(cursor, 'base64url').toString('utf8').split('|');
-  const createdAt = new Date(iso ?? '');
-  return id && !Number.isNaN(createdAt.getTime()) ? { createdAt, id } : null;
-}
-
-const escapeLike = (text: string) => text.replace(/[\\%_]/g, (c) => `\\${c}`);
 
 export async function listRequests(
   db: Database,

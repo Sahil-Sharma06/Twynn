@@ -1,24 +1,25 @@
 import { Hono, type Context } from 'hono';
-import { CACHE_HEADERS, type CacheLayer, type CacheStatus } from '@twynn/shared';
-import type { ExactCache } from '../cache/exact';
-import { exactCacheKey } from '../cache/key';
-import { sha256 } from '../lib/crypto';
+import {
+  CACHE_CONTROL_HEADER,
+  CACHE_CONTROL_NO_CACHE,
+  CACHE_HEADERS,
+  type CacheLayer,
+  type CacheStatus,
+} from '@twynn/shared';
+import type { CacheContext, CacheManager } from '../cache/manager';
 import { GatewayError, normalizeUpstreamError } from '../lib/errors';
 import { parseJsonBody } from '../lib/validation';
-import { chatCompletionRequest } from '../proxy/schema';
 import { usageFrom, type MeterDraft, type RequestRecorder } from '../metering/recorder';
-import type { Embedder } from '../semantic/embeddings';
-import { finalMessageText, semanticQuery } from '../semantic/request';
-import type { SemanticStore } from '../semantic/store';
+import { chatCompletionRequest } from '../proxy/schema';
+import { completionToSse, interceptSse } from '../proxy/stream';
+import { finalMessageText } from '../semantic/request';
 import type { Tenant, TenantResolver } from '../services/tenancy';
 import type { AppEnv } from '../types';
 import type { UpstreamClient } from '../upstream/client';
 
 export interface ChatDeps {
   resolveTenant: TenantResolver;
-  cache: ExactCache;
-  semantic: SemanticStore;
-  embedder: Embedder;
+  cache: CacheManager;
   upstream: UpstreamClient;
   recorder: RequestRecorder;
 }
@@ -45,12 +46,11 @@ async function authenticate(c: Context, resolveTenant: TenantResolver): Promise<
   return tenant;
 }
 
-/**
- * Cache entries are scoped to the workspace and to the provider URL, so switching
- * providers never serves answers produced by the previous one.
- */
-export function cacheScope(workspaceId: string, baseUrl: string): string {
-  return `${workspaceId}:${sha256(baseUrl).slice(0, 16)}`;
+/** True when the caller asked to skip cache lookups for this request. */
+export function wantsFreshAnswer(header: string | undefined): boolean {
+  return (header ?? '')
+    .split(',')
+    .some((directive) => directive.trim().toLowerCase() === CACHE_CONTROL_NO_CACHE);
 }
 
 function setCacheHeaders(c: Context, status: CacheStatus, layer: CacheLayer): void {
@@ -58,46 +58,33 @@ function setCacheHeaders(c: Context, status: CacheStatus, layer: CacheLayer): vo
   c.header(CACHE_HEADERS.layer, layer);
 }
 
-/** A successful completion worth caching: valid JSON with at least one message choice. */
-export function isCacheableCompletion(text: string): boolean {
-  try {
-    const body = JSON.parse(text) as { choices?: unknown };
-    return (
-      Array.isArray(body.choices) &&
-      body.choices.length > 0 &&
-      body.choices.every((choice: { message?: unknown }) => typeof choice?.message === 'object')
-    );
-  } catch {
-    return false;
-  }
+function sseHeaders(c: Context): void {
+  c.header('content-type', 'text/event-stream; charset=utf-8');
+  c.header('cache-control', 'no-cache');
+  c.header('x-accel-buffering', 'no');
 }
 
-export function chatRoutes({
-  resolveTenant,
-  cache,
-  semantic,
-  embedder,
-  upstream,
-  recorder,
-}: ChatDeps): Hono<AppEnv> {
+export function chatRoutes({ resolveTenant, cache, upstream, recorder }: ChatDeps): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
 
-  // Metering: every authenticated request is recorded once its response (or error) is ready.
+  // Metering: every authenticated request is recorded once its response (or error) is ready;
+  // streamed responses are recorded when the stream ends, with latency measured to first byte.
   routes.use('/chat/completions', async (c, next) => {
     const started = performance.now();
     const meter: MeterDraft = {};
     c.set('meter', meter);
     await next();
-    const { workspaceId } = meter;
-    if (!workspaceId) return; // unauthenticated: nothing to attribute it to
-    recorder.record({
-      ...meter,
-      workspaceId,
+    if (!meter.workspaceId) return; // unauthenticated: nothing to attribute it to
+    const fixed = {
       layer: (c.res.headers.get(CACHE_HEADERS.layer) as CacheLayer | null) ?? null,
       status: (c.res.headers.get(CACHE_HEADERS.status) as CacheStatus | null) ?? null,
       statusCode: c.res.status,
       latencyMs: Math.round(performance.now() - started),
-    });
+    };
+    const workspaceId = meter.workspaceId;
+    recorder.record(
+      Promise.resolve(meter.settled).then(() => ({ ...meter, ...fixed, workspaceId })),
+    );
   });
 
   routes.post('/chat/completions', async (c) => {
@@ -119,88 +106,72 @@ export function chatRoutes({
       );
     }
 
+    const fresh = wantsFreshAnswer(c.req.header(CACHE_CONTROL_HEADER));
+    const ctx: CacheContext = {
+      workspaceId: tenant.workspaceId,
+      provider,
+      settings,
+      request,
+      signal: c.req.raw.signal,
+    };
+    const lookup = await cache.lookup(ctx, { read: !fresh });
+    if (lookup.embedding) {
+      meter.embeddingModel = settings.embeddingModel;
+      if (lookup.embedding.tokens !== null) meter.embeddingTokens = lookup.embedding.tokens;
+    }
+    const callerWantsUsage =
+      (request.stream_options as { include_usage?: unknown } | undefined)?.include_usage === true;
+
+    const { hit } = lookup;
+    if (hit) {
+      setCacheHeaders(c, 'HIT', hit.layer);
+      Object.assign(meter, usageFrom(hit.response));
+      if (hit.layer === 'twin') {
+        c.header(CACHE_HEADERS.matchScore, hit.score.toFixed(4));
+        meter.matchScore = hit.score;
+        if (hit.matchedPrompt !== null) meter.matchedPrompt = hit.matchedPrompt;
+      }
+      if (request.stream) {
+        sseHeaders(c);
+        return c.body(completionToSse(hit.response, { includeUsage: callerWantsUsage }));
+      }
+      return c.body(hit.response, 200, { 'content-type': 'application/json' });
+    }
+
+    setCacheHeaders(c, fresh ? 'BYPASS' : 'MISS', 'upstream');
     const upstreamRequest = {
       baseUrl: provider.baseUrl,
       path: '/chat/completions',
-      body: JSON.stringify(request),
-      headers: {
-        authorization: `Bearer ${provider.apiKey}`,
-        'content-type': 'application/json',
-      },
+      headers: { authorization: `Bearer ${provider.apiKey}`, 'content-type': 'application/json' },
       signal: c.req.raw.signal,
     };
 
     if (request.stream) {
-      setCacheHeaders(c, 'BYPASS', 'upstream');
-      const res = await upstream.postStream(upstreamRequest);
-      if (!res.ok) throw normalizeUpstreamError(res.status, await res.text());
-      c.header('content-type', res.headers.get('content-type') ?? 'text/event-stream');
-      c.header('cache-control', 'no-cache');
-      return res.body ? c.body(res.body) : c.body(null);
-    }
-
-    // Layer 1: exact match.
-    const key = exactCacheKey(cacheScope(tenant.workspaceId, provider.baseUrl), request);
-    const cached = await cache.get(key);
-    if (cached !== null) {
-      setCacheHeaders(c, 'HIT', 'exact');
-      Object.assign(meter, usageFrom(cached));
-      return c.body(cached, 200, { 'content-type': 'application/json' });
-    }
-
-    // Layer 2: twin match on the final user message, within an exactly-matching scope.
-    const query = settings.semanticEnabled
-      ? semanticQuery(request, provider.baseUrl, settings.embeddingModel)
-      : null;
-    const embedding = query
-      ? await embedder.embed({
-          baseUrl: provider.baseUrl,
-          apiKey: provider.apiKey,
-          model: settings.embeddingModel,
-          text: query.text,
-          signal: c.req.raw.signal,
-        })
-      : null;
-    if (embedding) {
-      meter.embeddingModel = settings.embeddingModel;
-      if (embedding.tokens !== null) meter.embeddingTokens = embedding.tokens;
-    }
-    if (query && embedding) {
-      const twin = await semantic.findTwin({
-        workspaceId: tenant.workspaceId,
-        scopeHash: query.scopeHash,
-        embedding: embedding.vector,
-        threshold: settings.twinThreshold,
+      // Always ask for usage so streamed requests are metered; withheld from callers who didn't ask.
+      const body = JSON.stringify({
+        ...request,
+        stream_options: { ...(request.stream_options as object), include_usage: true },
       });
-      if (twin) {
-        setCacheHeaders(c, 'HIT', 'twin');
-        c.header(CACHE_HEADERS.matchScore, twin.score.toFixed(4));
-        Object.assign(meter, usageFrom(twin.response), {
-          matchScore: twin.score,
-          matchedPrompt: twin.prompt,
-        });
-        return c.body(twin.response, 200, { 'content-type': 'application/json' });
-      }
+      const res = await upstream.postStream({ ...upstreamRequest, body });
+      if (!res.ok || !res.body) throw normalizeUpstreamError(res.status, await res.text());
+      let settle!: () => void;
+      meter.settled = new Promise((resolve) => (settle = resolve));
+      const stream = interceptSse(res.body, {
+        forwardUsage: callerWantsUsage,
+        onEnd: (completion) => {
+          if (!completion) return settle();
+          Object.assign(meter, usageFrom(completion));
+          cache.store(ctx, lookup, completion).finally(settle);
+        },
+      });
+      sseHeaders(c);
+      return c.body(stream);
     }
 
-    setCacheHeaders(c, 'MISS', 'upstream');
-    const res = await upstream.postBuffered(upstreamRequest);
+    const res = await upstream.postBuffered({ ...upstreamRequest, body: JSON.stringify(request) });
     if (res.status !== 200) throw normalizeUpstreamError(res.status, res.text);
     Object.assign(meter, usageFrom(res.text));
-    if (isCacheableCompletion(res.text)) {
-      await cache.set(key, res.text, settings.ttlSeconds);
-      if (query && embedding) {
-        await semantic.insert({
-          workspaceId: tenant.workspaceId,
-          scopeHash: query.scopeHash,
-          model: request.model,
-          prompt: query.text,
-          embedding: embedding.vector,
-          response: res.text,
-          ttlSeconds: settings.ttlSeconds,
-        });
-      }
-    }
+    await cache.store(ctx, lookup, res.text);
     return c.body(res.text, 200, { 'content-type': 'application/json' });
   });
 

@@ -108,20 +108,6 @@ describe('POST /v1/chat/completions', () => {
     expect(cache.store.size).toBe(0);
   });
 
-  it('streams through uncached with a BYPASS header', async () => {
-    const sse = 'data: {"choices":[{"delta":{"content":"hi"}}]}\n\ndata: [DONE]\n\n';
-    const cache = new MemoryCache();
-    const f = fakeFetch(
-      () => new Response(sse, { headers: { 'content-type': 'text/event-stream' } }),
-    );
-    const { app, key } = await setup({ fetch: f.impl, cache });
-    const res = await gatewayPost(app, key, { ...body, stream: true });
-    expect(res.headers.get('x-twynn-cache')).toBe('BYPASS');
-    expect(res.headers.get('content-type')).toContain('text/event-stream');
-    expect(await res.text()).toBe(sse);
-    expect(cache.store.size).toBe(0);
-  });
-
   describe('authentication and validation', () => {
     it('rejects a missing key with 401', async () => {
       const res = await gatewayPost(buildApp({ db }), undefined, body);

@@ -18,6 +18,8 @@ export interface MeterDraft {
   embeddingTokens?: number;
   matchScore?: number;
   matchedPrompt?: string;
+  /** For streamed responses: resolves once the stream ends, so late token counts are included. */
+  settled?: Promise<void>;
 }
 
 export interface MeterRecord extends MeterDraft {
@@ -88,8 +90,11 @@ export class RequestRecorder {
   ) {}
 
   /** Records in the background so the response is never delayed by metering. */
-  record(record: MeterRecord): void {
-    const task = this.write(record).finally(() => this.pending.delete(task));
+  record(record: MeterRecord | Promise<MeterRecord>): void {
+    const task = Promise.resolve(record)
+      .then((r) => this.write(r))
+      .catch((err) => this.logger.error({ err }, 'failed to record request'))
+      .finally(() => this.pending.delete(task));
     this.pending.add(task);
   }
 

@@ -3,7 +3,9 @@ import { sql } from 'drizzle-orm';
 import { PRODUCT_NAME } from '@twynn/shared';
 import { sessionCookie } from './auth/middleware';
 import { createApp } from './app';
+import { EntryStore } from './cache/entries';
 import { createRedisExactCache } from './cache/exact';
+import { CacheManager } from './cache/manager';
 import { loadConfig } from './config';
 import { createDb } from './db/client';
 import { parseEncryptionKey } from './lib/crypto';
@@ -13,7 +15,6 @@ import { createRedis } from './lib/redis';
 import { deleteOldLogs } from './metering/analytics';
 import { RequestRecorder } from './metering/recorder';
 import { Embedder } from './semantic/embeddings';
-import { createSemanticStore } from './semantic/store';
 import { ProviderStore } from './services/providers';
 import { createTenantResolver } from './services/tenancy';
 import { UpstreamClient } from './upstream/client';
@@ -29,7 +30,16 @@ const events = await createRedisEventBus(redis, subscriber, logger);
 const shutdownController = new AbortController();
 
 const providers = new ProviderStore(db, parseEncryptionKey(config.TWYNN_ENCRYPTION_KEY));
-const semantic = createSemanticStore(db, logger);
+const entries = new EntryStore(db, logger);
+const cache = new CacheManager(
+  createRedisExactCache(redis, logger),
+  entries,
+  new Embedder(
+    new UpstreamClient({ timeoutMs: config.TWYNN_EMBEDDING_TIMEOUT_MS, maxRetries: 1 }),
+    logger,
+  ),
+  logger,
+);
 const recorder = new RequestRecorder(db, events, logger);
 const cookie = sessionCookie(production);
 
@@ -38,12 +48,7 @@ const app = createApp({
   webOrigin: config.TWYNN_WEB_ORIGIN,
   chat: {
     resolveTenant: createTenantResolver(db, providers, logger),
-    cache: createRedisExactCache(redis, logger),
-    semantic,
-    embedder: new Embedder(
-      new UpstreamClient({ timeoutMs: config.TWYNN_EMBEDDING_TIMEOUT_MS, maxRetries: 1 }),
-      logger,
-    ),
+    cache,
     upstream: new UpstreamClient({
       timeoutMs: config.TWYNN_UPSTREAM_TIMEOUT_MS,
       maxRetries: config.TWYNN_UPSTREAM_MAX_RETRIES,
@@ -58,6 +63,7 @@ const app = createApp({
     production,
   },
   analytics: { db, cookie, events, shutdown: shutdownController.signal },
+  cacheAdmin: { db, cookie, entries, cache },
   checks: {
     postgres: async () => {
       await db.execute(sql`select 1`);
@@ -76,7 +82,7 @@ const server = serve({ fetch: app.fetch, port: config.TWYNN_API_PORT }, ({ port 
 // request log retention.
 const CLEANUP_INTERVAL_MS = 10 * 60_000;
 const cleanup = setInterval(() => {
-  Promise.all([semantic.deleteExpired(), deleteOldLogs(db, config.TWYNN_LOG_RETENTION_DAYS)])
+  Promise.all([entries.deleteExpired(), deleteOldLogs(db, config.TWYNN_LOG_RETENTION_DAYS)])
     .then(([entries, logs]) => {
       if (entries || logs) logger.info({ entries, logs }, 'cleanup removed expired rows');
     })

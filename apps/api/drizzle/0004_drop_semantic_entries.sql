@@ -1,0 +1,1 @@
+-- Replaced by cache_entries (0005). Cached data is disposable; exact keys moved to v2 as well.

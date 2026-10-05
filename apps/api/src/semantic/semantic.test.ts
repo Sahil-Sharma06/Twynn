@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { sql } from 'drizzle-orm';
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { Database } from '../db/client';
-import { semanticEntries } from '../db/schema';
+import { cacheEntries } from '../db/schema';
 import {
   Browser,
   buildApp,
@@ -15,7 +15,7 @@ import {
   json,
   type EmbedFn,
 } from '../test/helpers';
-import { INDEXED_DIMENSIONS } from './store';
+import { INDEXED_DIMENSIONS } from '../cache/entries';
 
 /**
  * End-to-end twin layer: real gateway, real Postgres + pgvector (PGlite), fake
@@ -189,7 +189,7 @@ describe('twin layer', () => {
   it('ignores expired entries', async () => {
     const t = await tenant();
     await t.post(ask(ORIGINAL));
-    await db.update(semanticEntries).set({ expiresAt: sql`now() - interval '1 second'` });
+    await db.update(cacheEntries).set({ expiresAt: sql`now() - interval '1 second'` });
     expect(header(await t.post(ask(TWIN))).cache).toBe('MISS');
   });
 
@@ -206,9 +206,9 @@ describe('twin layer', () => {
     f.embed = vectors();
     const app = buildApp({ db, fetch: f.impl });
     const { gatewayKey } = await new Browser(app).onboard(`${randomUUID()}@example.com`);
-    const before = (await db.select().from(semanticEntries)).length;
+    const before = (await db.select().from(cacheEntries)).length;
     await gatewayPost(app, gatewayKey, ask(ORIGINAL));
-    expect((await db.select().from(semanticEntries)).length).toBe(before);
+    expect((await db.select().from(cacheEntries)).length).toBe(before);
   });
 
   it('skips prompts that are not plain text', async () => {
@@ -231,7 +231,7 @@ describe('twin layer', () => {
 describe('HNSW indexes', () => {
   it('exist in the migration for every indexed dimension', () => {
     const migration = readFileSync(
-      fileURLToPath(new URL('../../drizzle/0002_semantic_layer.sql', import.meta.url)),
+      fileURLToPath(new URL('../../drizzle/0005_cache_entries.sql', import.meta.url)),
       'utf8',
     );
     for (const d of INDEXED_DIMENSIONS) {
@@ -247,10 +247,10 @@ describe('HNSW indexes', () => {
     const probe = `[${[1, ...Array(1535).fill(0)].join(',')}]`;
     await db.execute(sql`SET enable_seqscan = off`);
     const plan = await db.execute(sql`
-      EXPLAIN SELECT id FROM semantic_entries
+      EXPLAIN SELECT id FROM cache_entries
       WHERE dimensions = 1536
       ORDER BY embedding::vector(1536) <=> ${probe}::vector(1536) LIMIT 1`);
     await db.execute(sql`SET enable_seqscan = on`);
-    expect(JSON.stringify(plan)).toContain('semantic_entries_embedding_hnsw_1536');
+    expect(JSON.stringify(plan)).toContain('cache_entries_embedding_hnsw_1536');
   });
 });

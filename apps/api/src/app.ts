@@ -6,6 +6,7 @@ import type { Logger } from 'pino';
 import { csrfGuard } from './auth/middleware';
 import { GatewayError } from './lib/errors';
 import { analyticsRoutes, type AnalyticsDeps } from './routes/analytics';
+import { cacheRoutes, type CacheRoutesDeps } from './routes/cache';
 import { chatRoutes, type ChatDeps } from './routes/chat';
 import { dashboardRoutes, type DashboardDeps } from './routes/dashboard';
 import type { AppEnv } from './types';
@@ -19,6 +20,7 @@ export interface AppDeps {
   chat: ChatDeps;
   dashboard: DashboardDeps;
   analytics: AnalyticsDeps;
+  cacheAdmin: CacheRoutesDeps;
   webOrigin: string;
   healthTimeoutMs?: number;
 }
@@ -39,6 +41,7 @@ export function createApp({
   chat,
   dashboard,
   analytics,
+  cacheAdmin,
   webOrigin,
   healthTimeoutMs = 2_000,
 }: AppDeps): Hono<AppEnv> {
@@ -99,6 +102,7 @@ export function createApp({
   app.use('/api/*', limitBody, csrfGuard(webOrigin));
   app.route('/api', dashboardRoutes(dashboard));
   app.route('/api', analyticsRoutes(analytics));
+  app.route('/api', cacheRoutes(cacheAdmin));
 
   app.notFound((c) =>
     c.json(

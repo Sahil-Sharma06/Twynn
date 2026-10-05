@@ -111,25 +111,38 @@ const vector = customType<{ data: number[]; driverData: string }>({
   fromDriver: (value) => JSON.parse(value) as number[],
 });
 
-/** Layer 2: prompts with their embeddings and the response served to twin requests. */
-export const semanticEntries = pgTable(
-  'semantic_entries',
+/**
+ * Catalogue of every cached response, one row per exact key. Redis holds the
+ * hot copy for Layer 1; this table makes entries browsable and deletable, and
+ * rows with an embedding form Layer 2 (twin matching).
+ */
+export const cacheEntries = pgTable(
+  'cache_entries',
   {
     id: uuid('id').primaryKey().defaultRandom(),
     workspaceId: uuid('workspace_id')
       .notNull()
       .references(() => workspaces.id, { onDelete: 'cascade' }),
-    /** Hash of everything that must match exactly for a twin hit; see semantic/request. */
-    scopeHash: text('scope_hash').notNull(),
+    /** The Redis key of the Layer 1 copy. */
+    exactKey: text('exact_key').notNull().unique(),
     model: text('model').notNull(),
-    prompt: text('prompt').notNull(),
-    embedding: vector('embedding').notNull(),
-    dimensions: integer('dimensions').notNull(),
+    /** Final message text, for browsing; null when it has no text. */
+    prompt: text('prompt'),
+    /** Twin scope (see semantic/request); null when the entry is not eligible for twin matching. */
+    scopeHash: text('scope_hash'),
+    embedding: vector('embedding'),
+    dimensions: integer('dimensions'),
     response: text('response').notNull(),
-    createdAt: createdAt(),
+    hitCount: integer('hit_count').default(0).notNull(),
+    lastHitAt: timestamp('last_hit_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true, precision: 3 }).defaultNow().notNull(),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   },
-  (t) => [index().on(t.workspaceId, t.scopeHash, t.dimensions), index().on(t.expiresAt)],
+  (t) => [
+    index().on(t.workspaceId, t.scopeHash, t.dimensions),
+    index().on(t.workspaceId, t.createdAt.desc(), t.id.desc()),
+    index().on(t.expiresAt),
+  ],
 );
 
 /** One row per authenticated gateway request. The source of every number the dashboard shows. */

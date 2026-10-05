@@ -50,8 +50,8 @@ async function tenant(responder?: () => Response) {
   const app = buildApp({ db, fetch: f.impl, events, recorder, shutdown: shutdown.signal });
   const browser = new Browser(app);
   const { gatewayKey, keyId } = await browser.onboard(`${randomUUID()}@example.com`);
-  const post = async (body: unknown) => {
-    const res = await gatewayPost(app, gatewayKey, body);
+  const post = async (body: unknown, headers: Record<string, string> = {}) => {
+    const res = await gatewayPost(app, gatewayKey, body, headers);
     await res.text();
     await recorder.flush();
     return res;
@@ -147,7 +147,7 @@ describe('recording', () => {
 });
 
 describe('analytics', () => {
-  /** 1 miss, 2 exact hits, 1 twin hit, 1 streamed bypass, 1 unpriced-model hit pair. */
+  /** 1 miss, 2 exact hits, 1 twin hit, 1 bypass, 1 unpriced-model miss + hit. */
   async function trafficTenant() {
     const t = await tenant();
     t.f.embed = vectors;
@@ -155,7 +155,7 @@ describe('analytics', () => {
     await t.post(ask(FRANCE)); // exact
     await t.post(ask(FRANCE)); // exact
     await t.post(ask(FRANCE_TWIN)); // twin
-    await t.post(ask('Stream this', { stream: true })); // bypass
+    await t.post(ask('Fresh please'), { 'x-twynn-cache-control': 'no-cache' }); // bypass
     await t.post(ask('Unpriced question', { model: UNPRICED })); // miss
     await t.post(ask('Unpriced question', { model: UNPRICED })); // exact, unpriced
     return t;
@@ -176,9 +176,9 @@ describe('analytics', () => {
     expect(s.hitRate).toBeCloseTo(4 / 6, 10);
 
     const savedPerHit = chatCostUsd(PRICED, 1000, 500)!;
-    // Embeddings ran on the 3 eligible exact misses: FRANCE, FRANCE_TWIN, and the unpriced miss.
-    // Streamed and exact-hit requests never embed.
-    const embedding = embeddingCostUsd('text-embedding-3-small', EMBED_TOKENS)! * 3;
+    // Every request that got past Layer 1 embedded: FRANCE, FRANCE_TWIN, the bypass (to refresh its
+    // twin entry) and the unpriced miss. Exact hits never embed.
+    const embedding = embeddingCostUsd('text-embedding-3-small', EMBED_TOKENS)! * 4;
     expect(s.cost.savedUsd).toBeCloseTo(3 * savedPerHit, 12);
     expect(s.cost.embeddingUsd).toBeCloseTo(embedding, 12);
     expect(s.cost.netUsd).toBeCloseTo(3 * savedPerHit - embedding, 12);

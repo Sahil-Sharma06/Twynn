@@ -29,6 +29,20 @@
       "when": 1791221613004,
       "tag": "0003_request_logs",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791222186326,
+      "tag": "0004_drop_semantic_entries",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791222202165,
+      "tag": "0005_cache_entries",
+      "breakpoints": true
     }
   ]
 }

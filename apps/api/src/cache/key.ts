@@ -33,7 +33,8 @@ export const OUTPUT_AFFECTING_FIELDS = [
   'prediction',
 ] as const;
 
-const CACHE_KEY_VERSION = 'v1';
+// v2: entries are catalogued in cache_entries; v1 keys have no catalogue row and are ignored.
+const CACHE_KEY_VERSION = 'v2';
 
 /** Recursively sorts object keys and drops undefined values; array order is preserved. */
 export function canonicalize(value: unknown): unknown {
