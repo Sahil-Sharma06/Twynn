@@ -3,12 +3,16 @@ import { GatewayError } from '../lib/errors';
 import { fakeFetch, json } from '../test/helpers';
 import { backoffMs, ClientAbortedError, UpstreamClient } from './client';
 
-const request = { path: '/chat/completions', body: '{"model":"m"}', headers: {} };
+const request = {
+  baseUrl: 'https://upstream.test/v1/',
+  path: '/chat/completions',
+  body: '{"model":"m"}',
+  headers: {},
+};
 
 function client(fetchImpl: typeof fetch, opts: { maxRetries?: number; timeoutMs?: number } = {}) {
   const sleeps: number[] = [];
   const c = new UpstreamClient({
-    baseUrl: 'https://upstream.test/v1/',
     timeoutMs: opts.timeoutMs ?? 1_000,
     maxRetries: opts.maxRetries ?? 2,
     fetch: fetchImpl,

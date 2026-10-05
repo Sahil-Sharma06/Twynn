@@ -5,7 +5,6 @@ const BASE_BACKOFF_MS = 250;
 const MAX_RETRY_AFTER_MS = 5_000;
 
 export interface UpstreamOptions {
-  baseUrl: string;
   timeoutMs: number;
   maxRetries: number;
   fetch?: typeof fetch;
@@ -13,6 +12,8 @@ export interface UpstreamOptions {
 }
 
 export interface UpstreamRequest {
+  /** The tenant's provider base URL, e.g. https://api.openai.com/v1 */
+  baseUrl: string;
   path: string;
   body: string;
   headers: Record<string, string>;
@@ -40,12 +41,10 @@ export function backoffMs(attempt: number, retryAfter: string | null): number {
 }
 
 export class UpstreamClient {
-  private readonly baseUrl: string;
   private readonly fetchImpl: typeof fetch;
   private readonly sleep: (ms: number) => Promise<void>;
 
   constructor(private readonly options: UpstreamOptions) {
-    this.baseUrl = options.baseUrl.replace(/\/+$/, '');
     this.fetchImpl = options.fetch ?? fetch;
     this.sleep = options.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
   }
@@ -65,7 +64,7 @@ export class UpstreamClient {
   }
 
   private async send<T>(request: UpstreamRequest, read: (res: Response) => Promise<T>): Promise<T> {
-    const url = `${this.baseUrl}${request.path}`;
+    const url = `${request.baseUrl.replace(/\/+$/, '')}${request.path}`;
     const { timeoutMs, maxRetries } = this.options;
 
     for (let attempt = 0; ; attempt++) {

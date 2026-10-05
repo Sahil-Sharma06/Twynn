@@ -9,7 +9,7 @@ export function App() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch('/api/health', { signal: controller.signal })
+    fetch('/health', { signal: controller.signal })
       .then((res) => res.json() as Promise<{ status: 'ok' | 'degraded' }>)
       .then((body) => setApi(body.status))
       .catch(() => {

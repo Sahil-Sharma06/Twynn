@@ -1,31 +1,50 @@
 import { Hono, type Context } from 'hono';
 import { CACHE_HEADERS, type CacheLayer, type CacheStatus } from '@twynn/shared';
 import type { ExactCache } from '../cache/exact';
-import { exactCacheKey, sha256 } from '../cache/key';
+import { exactCacheKey } from '../cache/key';
+import { sha256 } from '../lib/crypto';
 import { GatewayError, normalizeUpstreamError } from '../lib/errors';
+import { parseJsonBody } from '../lib/validation';
 import { chatCompletionRequest } from '../proxy/schema';
+import type { Tenant, TenantResolver } from '../services/tenancy';
+import type { AppEnv } from '../types';
 import type { UpstreamClient } from '../upstream/client';
 
 export interface ChatDeps {
+  resolveTenant: TenantResolver;
   cache: ExactCache;
   upstream: UpstreamClient;
   cacheTtlSeconds: number;
 }
 
-/** Request headers forwarded to the provider besides auth. */
-const FORWARDED_HEADERS = ['openai-organization', 'openai-project'] as const;
-
-function bearerToken(c: Context): string {
+async function authenticate(c: Context, resolveTenant: TenantResolver): Promise<Tenant> {
   const token = c.req.header('authorization')?.match(/^Bearer\s+(\S+)\s*$/i)?.[1];
   if (!token) {
     throw new GatewayError(
       401,
       'authentication_error',
-      'Missing API key. Send it as "Authorization: Bearer <key>".',
+      'Missing API key. Send your Twynn key as "Authorization: Bearer <key>".',
       'missing_api_key',
     );
   }
-  return token;
+  const tenant = await resolveTenant(token);
+  if (!tenant) {
+    throw new GatewayError(
+      401,
+      'authentication_error',
+      'Invalid or revoked API key.',
+      'invalid_api_key',
+    );
+  }
+  return tenant;
+}
+
+/**
+ * Cache entries are scoped to the workspace and to the provider URL, so switching
+ * providers never serves answers produced by the previous one.
+ */
+export function cacheScope(workspaceId: string, baseUrl: string): string {
+  return `${workspaceId}:${sha256(baseUrl).slice(0, 16)}`;
 }
 
 function setCacheHeaders(c: Context, status: CacheStatus, layer: CacheLayer): void {
@@ -47,44 +66,35 @@ export function isCacheableCompletion(text: string): boolean {
   }
 }
 
-export function chatRoutes({ cache, upstream, cacheTtlSeconds }: ChatDeps): Hono {
-  const routes = new Hono();
+export function chatRoutes({
+  resolveTenant,
+  cache,
+  upstream,
+  cacheTtlSeconds,
+}: ChatDeps): Hono<AppEnv> {
+  const routes = new Hono<AppEnv>();
 
   routes.post('/chat/completions', async (c) => {
-    const token = bearerToken(c);
-
-    let raw: unknown;
-    try {
-      raw = await c.req.json();
-    } catch {
-      throw new GatewayError(400, 'invalid_request_error', 'Request body must be valid JSON.');
-    }
-    const parsed = chatCompletionRequest.safeParse(raw);
-    if (!parsed.success) {
-      const issue = parsed.error.issues[0];
-      const param = issue?.path.join('.') || null;
+    const tenant = await authenticate(c, resolveTenant);
+    const request = await parseJsonBody(c, chatCompletionRequest);
+    const { provider } = tenant;
+    if (!provider) {
       throw new GatewayError(
         400,
         'invalid_request_error',
-        param ? `Invalid "${param}": ${issue?.message}` : 'Invalid request body.',
-        'invalid_request',
-        param,
+        'No upstream provider is connected to this workspace. Connect one in the Twynn dashboard.',
+        'provider_not_configured',
       );
     }
-    const request = parsed.data;
 
-    const headers: Record<string, string> = {
-      authorization: `Bearer ${token}`,
-      'content-type': 'application/json',
-    };
-    for (const name of FORWARDED_HEADERS) {
-      const value = c.req.header(name);
-      if (value) headers[name] = value;
-    }
     const upstreamRequest = {
+      baseUrl: provider.baseUrl,
       path: '/chat/completions',
       body: JSON.stringify(request),
-      headers,
+      headers: {
+        authorization: `Bearer ${provider.apiKey}`,
+        'content-type': 'application/json',
+      },
       signal: c.req.raw.signal,
     };
 
@@ -97,8 +107,7 @@ export function chatRoutes({ cache, upstream, cacheTtlSeconds }: ChatDeps): Hono
       return res.body ? c.body(res.body) : c.body(null);
     }
 
-    // Until tenants exist, the caller's key is the isolation boundary.
-    const key = exactCacheKey(sha256(token), request);
+    const key = exactCacheKey(cacheScope(tenant.workspaceId, provider.baseUrl), request);
     const cached = await cache.get(key);
     if (cached !== null) {
       setCacheHeaders(c, 'HIT', 'exact');

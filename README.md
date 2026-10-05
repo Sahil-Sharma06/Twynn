@@ -14,6 +14,16 @@ npm run dev     # API on :3000, web on :5173
 
 `npm run check` runs typecheck, lint, format check, and tests.
 
+## Using the gateway
+
+Sign up, connect an OpenAI-compatible provider (base URL and key), and create a gateway key through the dashboard API (`/api/auth/signup`, `/api/provider`, `/api/keys`). Then point any OpenAI client at Twynn:
+
+```ts
+const client = new OpenAI({ baseURL: 'http://localhost:3000/v1', apiKey: 'twynn_sk_…' });
+```
+
+Each response carries `X-Twynn-Cache` (`HIT`, `MISS`, `BYPASS`) and `X-Twynn-Cache-Layer`.
+
 ## Layout
 
 | Path              | Purpose                                         |

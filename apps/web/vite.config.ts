@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    proxy: { '/api': { target: 'http://localhost:3000', rewrite: (p) => p.replace(/^\/api/, '') } },
+    // Same-origin in dev, so the session cookie and the CSRF origin check just work.
+    proxy: { '/api': 'http://localhost:3000', '/health': 'http://localhost:3000' },
   },
 });

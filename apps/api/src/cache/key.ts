@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { sha256 } from '../lib/crypto';
 
 /**
  * Request fields that can change the model's output. This is an allowlist on
@@ -59,10 +59,6 @@ export function canonicalRequest(request: Record<string, unknown>): unknown {
     picked[field] = field === 'stop' && typeof value === 'string' ? [value] : value;
   }
   return canonicalize(picked);
-}
-
-export function sha256(input: string): string {
-  return createHash('sha256').update(input).digest('hex');
 }
 
 /** Redis key for the exact layer, namespaced by an opaque per-caller scope. */

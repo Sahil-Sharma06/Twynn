@@ -3,8 +3,11 @@ import { bodyLimit } from 'hono/body-limit';
 import { requestId } from 'hono/request-id';
 import { CACHE_HEADERS, PRODUCT_NAME } from '@twynn/shared';
 import type { Logger } from 'pino';
+import { csrfGuard } from './auth/middleware';
 import { GatewayError } from './lib/errors';
 import { chatRoutes, type ChatDeps } from './routes/chat';
+import { dashboardRoutes, type DashboardDeps } from './routes/dashboard';
+import type { AppEnv } from './types';
 import { ClientAbortedError } from './upstream/client';
 
 export type HealthCheck = () => Promise<void>;
@@ -13,6 +16,8 @@ export interface AppDeps {
   logger: Logger;
   checks: Record<string, HealthCheck>;
   chat: ChatDeps;
+  dashboard: DashboardDeps;
+  webOrigin: string;
   healthTimeoutMs?: number;
 }
 
@@ -26,8 +31,15 @@ function withTimeout(promise: Promise<void>, ms: number): Promise<void> {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
-export function createApp({ logger, checks, chat, healthTimeoutMs = 2_000 }: AppDeps): Hono {
-  const app = new Hono();
+export function createApp({
+  logger,
+  checks,
+  chat,
+  dashboard,
+  webOrigin,
+  healthTimeoutMs = 2_000,
+}: AppDeps): Hono<AppEnv> {
+  const app = new Hono<AppEnv>();
 
   app.use(requestId());
   app.use(async (c, next) => {
@@ -68,21 +80,21 @@ export function createApp({ logger, checks, chat, healthTimeoutMs = 2_000 }: App
     );
   });
 
-  app.use(
-    '/v1/*',
-    bodyLimit({
-      maxSize: MAX_BODY_BYTES,
-      onError: () => {
-        throw new GatewayError(
-          413,
-          'invalid_request_error',
-          `Request body exceeds ${MAX_BODY_BYTES / 1024 / 1024}MB.`,
-          'request_too_large',
-        );
-      },
-    }),
-  );
+  const limitBody = bodyLimit({
+    maxSize: MAX_BODY_BYTES,
+    onError: () => {
+      throw new GatewayError(
+        413,
+        'invalid_request_error',
+        `Request body exceeds ${MAX_BODY_BYTES / 1024 / 1024}MB.`,
+        'request_too_large',
+      );
+    },
+  });
+  app.use('/v1/*', limitBody);
   app.route('/v1', chatRoutes(chat));
+  app.use('/api/*', limitBody, csrfGuard(webOrigin));
+  app.route('/api', dashboardRoutes(dashboard));
 
   app.notFound((c) =>
     c.json(
