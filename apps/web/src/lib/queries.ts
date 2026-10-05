@@ -1,17 +1,34 @@
-import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  QueryClient,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import type {
   AnalyticsSummary,
+  CacheEntryDetail,
+  CacheEntryPage,
+  CacheSettings,
+  CacheSettingsUpdate,
   CreatedGatewayKey,
   Credentials,
   GatewayKeyView,
+  InvalidateInput,
+  ModelBreakdown,
   ProviderInput,
   ProviderView,
   PublicConfig,
+  RequestDetailView,
   RequestPage,
   SessionView,
   SignupInput,
+  ThresholdPreview,
+  Timeseries,
 } from '@twynn/shared';
 import { api, ApiError } from './api';
+import { rangeParams, type RangeKey } from './range';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -30,9 +47,22 @@ export const keys = {
   config: ['config'] as const,
   provider: ['provider'] as const,
   gatewayKeys: ['gateway-keys'] as const,
+  analytics: ['analytics'] as const,
   summary: ['analytics', 'summary'] as const,
+  requests: ['requests'] as const,
   recentRequests: ['requests', 'recent'] as const,
+  cache: ['cache'] as const,
+  settings: ['settings'] as const,
 };
+
+/** Drops undefined and empty values so URLs and query keys stay canonical. */
+export function toQuery(params: Record<string, string | number | boolean | undefined>): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== '' && value !== false) search.set(key, String(value));
+  }
+  return search.toString();
+}
 
 /** The signed-in session, or null when signed out. */
 export function useSession() {
@@ -118,10 +148,60 @@ export function useCreateKey() {
   });
 }
 
-export function useSummary() {
+export function useRevokeKey() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api<undefined>(`/keys/${id}`, { method: 'DELETE' }),
+    onSuccess: () => client.invalidateQueries({ queryKey: keys.gatewayKeys }),
+  });
+}
+
+export function useSummary(range: RangeKey = '24h') {
   return useQuery({
-    queryKey: keys.summary,
-    queryFn: () => api<AnalyticsSummary>('/analytics/summary'),
+    queryKey: [...keys.summary, range],
+    queryFn: () => api<AnalyticsSummary>(`/analytics/summary?${rangeParams(range)}`),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useTimeseries(range: RangeKey) {
+  return useQuery({
+    queryKey: [...keys.analytics, 'timeseries', range],
+    queryFn: () => api<Timeseries>(`/analytics/timeseries?${rangeParams(range)}`),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useModels(range: RangeKey) {
+  return useQuery({
+    queryKey: [...keys.analytics, 'models', range],
+    queryFn: async () =>
+      (await api<{ models: ModelBreakdown[] }>(`/analytics/models?${rangeParams(range)}`)).models,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export type RequestQuery = Record<string, string | number | boolean | undefined>;
+
+/** The request log, newest first, paged with a cursor. */
+export function useRequestLog(filters: RequestQuery, { enabled = true } = {}) {
+  const query = toQuery(filters);
+  return useInfiniteQuery({
+    queryKey: [...keys.requests, 'log', query],
+    queryFn: ({ pageParam }) =>
+      api<RequestPage>(`/requests?${toQuery({ ...filters, cursor: pageParam })}`),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    placeholderData: keepPreviousData,
+    enabled,
+  });
+}
+
+export function useRequestDetail(id: string) {
+  return useQuery({
+    queryKey: [...keys.requests, 'detail', id],
+    queryFn: async () => (await api<{ request: RequestDetailView }>(`/requests/${id}`)).request,
+    staleTime: Infinity, // logged requests never change
   });
 }
 
@@ -129,5 +209,67 @@ export function useRecentRequests(limit = 8) {
   return useQuery({
     queryKey: [...keys.recentRequests, limit],
     queryFn: () => api<RequestPage>(`/requests?limit=${limit}`),
+  });
+}
+
+export function useCacheEntries(filters: { q?: string | undefined; model?: string | undefined }) {
+  const query = toQuery(filters);
+  return useInfiniteQuery({
+    queryKey: [...keys.cache, 'list', query],
+    queryFn: ({ pageParam }) =>
+      api<CacheEntryPage>(`/cache?${toQuery({ ...filters, cursor: pageParam })}`),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useCacheEntry(id: string | null) {
+  return useQuery({
+    queryKey: [...keys.cache, 'detail', id],
+    queryFn: async () => (await api<{ entry: CacheEntryDetail }>(`/cache/${id}`)).entry,
+    enabled: id !== null,
+  });
+}
+
+export function useDeleteEntry() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api<undefined>(`/cache/${id}`, { method: 'DELETE' }),
+    onSuccess: () => client.invalidateQueries({ queryKey: keys.cache }),
+  });
+}
+
+export function useInvalidate() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (criteria: InvalidateInput) =>
+      (await api<{ deleted: number }>('/cache/invalidate', { method: 'POST', body: criteria }))
+        .deleted,
+    onSuccess: () => client.invalidateQueries({ queryKey: keys.cache }),
+  });
+}
+
+export function useCacheSettings() {
+  return useQuery({
+    queryKey: keys.settings,
+    queryFn: async () => (await api<{ settings: CacheSettings }>('/settings')).settings,
+  });
+}
+
+export function useSaveSettings() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (patch: CacheSettingsUpdate) =>
+      (await api<{ settings: CacheSettings }>('/settings', { method: 'PATCH', body: patch }))
+        .settings,
+    onSuccess: (settings) => client.setQueryData(keys.settings, settings),
+  });
+}
+
+export function useThresholdPreview(days = 7) {
+  return useQuery({
+    queryKey: [...keys.analytics, 'threshold-preview', days],
+    queryFn: () => api<ThresholdPreview>(`/analytics/threshold-preview?days=${days}`),
   });
 }

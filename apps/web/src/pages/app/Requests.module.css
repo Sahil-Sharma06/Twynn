@@ -1,0 +1,120 @@
+.page {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.window {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.tableWrap {
+  overflow-x: auto;
+  transition: opacity var(--duration-base) var(--ease-out);
+}
+
+.tableWrap[aria-busy='true'] {
+  opacity: 0.6;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.table th,
+.table td {
+  padding: var(--space-2);
+  border-top: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.table thead th {
+  border-top: 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.table tbody tr {
+  position: relative;
+}
+
+.table tbody tr:hover {
+  background: var(--color-surface-sunken);
+}
+
+.num {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--color-text-muted);
+}
+
+.prompt {
+  max-width: 28rem;
+  min-width: 12rem;
+}
+
+/* The prompt link stretches over the whole row, so any cell opens the request. */
+.rowLink {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.rowLink::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.rowLink:focus-visible {
+  outline: none;
+}
+
+.rowLink:focus-visible::after {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
+
+.key {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.model {
+  white-space: nowrap;
+  color: var(--color-text-muted);
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.count {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}

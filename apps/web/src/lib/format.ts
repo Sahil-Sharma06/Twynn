@@ -31,3 +31,37 @@ export function formatRelative(iso: string, now = Date.now()): string {
   if (abs < 86_400) return relative.format(Math.round(seconds / 3600), 'hour');
   return relative.format(Math.round(seconds / 86_400), 'day');
 }
+
+const hourFormat = new Intl.DateTimeFormat('en', {
+  month: 'short',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+const dayFormat = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' });
+const dateTime = new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'medium' });
+
+/** Label for a timeseries bucket, in the viewer's time zone. */
+export const formatBucket = (iso: string, bucket: 'hour' | 'day') =>
+  (bucket === 'hour' ? hourFormat : dayFormat).format(new Date(iso));
+
+export const formatDateTime = (iso: string) => dateTime.format(new Date(iso));
+
+/** Match scores are cosine similarities; three decimals tell close calls apart. */
+export const formatScore = (score: number) => score.toFixed(3);
+
+/** Durations such as cache TTLs, in the largest whole unit. */
+export function formatDuration(seconds: number): string {
+  const units: Array<[number, string]> = [
+    [86_400, 'day'],
+    [3600, 'hour'],
+    [60, 'minute'],
+  ];
+  for (const [size, unit] of units) {
+    if (seconds >= size && seconds % size === 0) {
+      const n = seconds / size;
+      return `${n} ${unit}${n === 1 ? '' : 's'}`;
+    }
+  }
+  return `${seconds} seconds`;
+}

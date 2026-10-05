@@ -1,0 +1,45 @@
+.meter {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.track {
+  position: relative;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: var(--color-upstream);
+  transition: width var(--duration-slow) var(--ease-out);
+}
+
+.meter[data-served] .fill {
+  background: var(--color-twin);
+}
+
+.threshold {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--color-text);
+  transition: left var(--duration-base) var(--ease-out);
+}
+
+.caption {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.caption strong {
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}

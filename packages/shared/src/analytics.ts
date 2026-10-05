@@ -2,6 +2,9 @@ import { z } from 'zod';
 import { CACHE_LAYER, CACHE_STATUS, type CacheLayer, type CacheStatus } from './cache';
 
 export const MAX_RANGE_DAYS = 90;
+
+/** Prompts are stored in the request log truncated to this many characters. */
+export const PROMPT_PREVIEW_CHARS = 280;
 const DAY_MS = 86_400_000;
 
 /** Time range for analytics; defaults to the last 24 hours. */

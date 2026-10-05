@@ -1,10 +1,16 @@
-import { chatCostUsd, type CacheLayer, type CacheStatus, type RequestLogView } from '@twynn/shared';
+import {
+  chatCostUsd,
+  PROMPT_PREVIEW_CHARS,
+  type CacheLayer,
+  type CacheStatus,
+  type RequestLogView,
+} from '@twynn/shared';
 import type { Logger } from 'pino';
 import type { Database } from '../db/client';
 import { requestLogs } from '../db/schema';
 import type { EventBus } from '../lib/events';
 
-export const PREVIEW_CHARS = 280;
+export const PREVIEW_CHARS = PROMPT_PREVIEW_CHARS;
 
 /** Filled in by the gateway route while handling a request. */
 export interface MeterDraft {

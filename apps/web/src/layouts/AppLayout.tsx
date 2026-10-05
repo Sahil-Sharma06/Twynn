@@ -9,6 +9,15 @@ import styles from './AppLayout.module.css';
 
 const navLink = styles.navLink ?? '';
 
+const NAV: Array<{ to: string; label: string; end?: boolean }> = [
+  { to: '/app', label: 'Overview', end: true },
+  { to: '/app/requests', label: 'Requests' },
+  { to: '/app/cache', label: 'Cache' },
+  { to: '/app/keys', label: 'Keys' },
+  { to: '/app/settings', label: 'Settings' },
+  { to: '/onboarding', label: 'Setup' },
+];
+
 export function AppLayout() {
   const { data: session } = useSession();
   const logout = useLogout();
@@ -25,12 +34,11 @@ export function AppLayout() {
             <Logo size={24} />
           </Link>
           <nav aria-label="Dashboard" className={styles.nav}>
-            <NavLink to="/app" end className={navLink}>
-              Overview
-            </NavLink>
-            <NavLink to="/onboarding" className={navLink}>
-              Setup
-            </NavLink>
+            {NAV.map(({ to, label, end }) => (
+              <NavLink key={to} to={to} end={end ?? false} className={navLink}>
+                {label}
+              </NavLink>
+            ))}
           </nav>
         </div>
         <div className={styles.right}>

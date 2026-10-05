@@ -15,6 +15,13 @@ const Onboarding = lazy(() =>
   import('./pages/onboarding/Onboarding').then((m) => ({ default: m.Onboarding })),
 );
 const Overview = lazy(() => import('./pages/app/Overview').then((m) => ({ default: m.Overview })));
+const Requests = lazy(() => import('./pages/app/Requests').then((m) => ({ default: m.Requests })));
+const RequestDetail = lazy(() =>
+  import('./pages/app/RequestDetail').then((m) => ({ default: m.RequestDetail })),
+);
+const Cache = lazy(() => import('./pages/app/Cache').then((m) => ({ default: m.Cache })));
+const Keys = lazy(() => import('./pages/app/Keys').then((m) => ({ default: m.Keys })));
+const Settings = lazy(() => import('./pages/app/Settings').then((m) => ({ default: m.Settings })));
 const NotFound = lazy(() => import('./pages/NotFound').then((m) => ({ default: m.NotFound })));
 
 const page = (node: ReactNode) => (
@@ -48,6 +55,11 @@ export const routes: RouteObject[] = [
     children: [
       { path: '/onboarding', element: page(<Onboarding />) },
       { path: '/app', element: page(<Overview />) },
+      { path: '/app/requests', element: page(<Requests />) },
+      { path: '/app/requests/:id', element: page(<RequestDetail />) },
+      { path: '/app/cache', element: page(<Cache />) },
+      { path: '/app/keys', element: page(<Keys />) },
+      { path: '/app/settings', element: page(<Settings />) },
     ],
   },
 ];

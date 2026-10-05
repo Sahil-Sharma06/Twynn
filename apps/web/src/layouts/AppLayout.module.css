@@ -27,6 +27,9 @@
 .nav {
   display: flex;
   gap: var(--space-1);
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
 .navLink {
@@ -36,6 +39,7 @@
   font-size: var(--text-sm);
   font-weight: 600;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .navLink:hover {
@@ -68,5 +72,9 @@
   }
   .header {
     flex-wrap: wrap;
+  }
+  .left {
+    order: 2;
+    flex-basis: 100%;
   }
 }
