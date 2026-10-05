@@ -37,6 +37,12 @@ export const providerInputSchema = z.object({
 });
 export type ProviderInput = z.infer<typeof providerInputSchema>;
 
+/** Unauthenticated client configuration from GET /api/config. */
+export interface PublicConfig {
+  /** Base URL for OpenAI clients, e.g. https://gateway.example.com/v1 */
+  gatewayUrl: string;
+}
+
 export interface SessionView {
   user: { id: string; email: string };
   workspace: { id: string; name: string };

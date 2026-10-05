@@ -61,6 +61,7 @@ const app = createApp({
     cookie,
     sessionTtlDays: config.TWYNN_SESSION_TTL_DAYS,
     production,
+    gatewayUrl: config.TWYNN_PUBLIC_GATEWAY_URL,
   },
   analytics: { db, cookie, events, shutdown: shutdownController.signal },
   cacheAdmin: { db, cookie, entries, cache },

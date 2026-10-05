@@ -5,6 +5,7 @@ import {
   createKeySchema,
   loginSchema,
   providerInputSchema,
+  type PublicConfig,
   signupSchema,
 } from '@twynn/shared';
 import {
@@ -36,6 +37,7 @@ export interface DashboardDeps {
   cookie: SessionCookie;
   sessionTtlDays: number;
   production: boolean;
+  gatewayUrl: string;
 }
 
 const notFound = (what: string) => new GatewayError(404, 'not_found_error', `${what} not found.`);
@@ -54,6 +56,9 @@ export function dashboardRoutes(deps: DashboardDeps): Hono<AppEnv> {
     if (!session) throw new Error('session missing right after creation');
     return session;
   }
+
+  // Public client configuration
+  routes.get('/config', (c) => c.json({ gatewayUrl: deps.gatewayUrl } satisfies PublicConfig));
 
   // Auth
   routes.post('/auth/signup', async (c) => {

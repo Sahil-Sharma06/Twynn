@@ -26,6 +26,13 @@ const password = 'correct horse battery';
 const freshEmail = () => `${randomUUID()}@example.com`;
 const browser = (production = false) => new Browser(buildApp({ db, production }));
 
+describe('public config', () => {
+  it('exposes the gateway URL without a session', async () => {
+    const res = await buildApp({ db }).request('/api/config');
+    expect(await res.json()).toEqual({ gatewayUrl: 'https://gateway.test/v1' });
+  });
+});
+
 describe('auth', () => {
   it('signs up, creates a workspace and starts a session', async () => {
     const b = browser();

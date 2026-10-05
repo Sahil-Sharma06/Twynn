@@ -162,6 +162,7 @@ export function buildApp(options: TestAppOptions): TestApp {
       cookie,
       sessionTtlDays: 30,
       production,
+      gatewayUrl: 'https://gateway.test/v1',
     },
     analytics: {
       db,

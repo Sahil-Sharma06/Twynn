@@ -17,6 +17,12 @@ const envSchema = z.object({
     .url()
     .transform((v) => new URL(v).origin)
     .default('http://localhost:5173'),
+  /** The gateway URL users point their OpenAI client at (shown in onboarding snippets). */
+  TWYNN_PUBLIC_GATEWAY_URL: z
+    .string()
+    .url()
+    .transform((v) => v.replace(/\/+$/, ''))
+    .default('http://localhost:3000/v1'),
   TWYNN_SESSION_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(30),
   /** Time allowed for the upstream to start responding (headers, or the full body when not streaming). */
   TWYNN_UPSTREAM_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
