@@ -27,6 +27,8 @@ export interface Lookup {
   exactKey: string;
   query: SemanticQuery | null;
   embedding: Embedding | null;
+  /** Closest stored candidate from the twin search, hit or not; kept for threshold previews. */
+  nearest: { score: number; prompt: string | null } | null;
 }
 
 /**
@@ -78,6 +80,7 @@ export class CacheManager {
           exactKey,
           query: null,
           embedding: null,
+          nearest: null,
         };
       }
     }
@@ -96,13 +99,13 @@ export class CacheManager {
       : null;
 
     if (read && query && embedding) {
-      const twin = await this.entries.findTwin({
+      const twin = await this.entries.findNearest({
         workspaceId,
         scopeHash: query.scopeHash,
         embedding: embedding.vector,
-        threshold: settings.twinThreshold,
       });
-      if (twin) {
+      const nearest = twin && { score: twin.score, prompt: twin.prompt };
+      if (twin && twin.score >= settings.twinThreshold) {
         this.track(this.entries.recordHit({ id: twin.id }));
         return {
           hit: {
@@ -114,10 +117,12 @@ export class CacheManager {
           exactKey,
           query,
           embedding,
+          nearest,
         };
       }
+      return { hit: null, exactKey, query, embedding, nearest };
     }
-    return { hit: null, exactKey, query, embedding };
+    return { hit: null, exactKey, query, embedding, nearest: null };
   }
 
   /** Stores a fresh answer in both layers, if it is a cacheable completion. */

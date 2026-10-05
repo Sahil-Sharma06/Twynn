@@ -1,6 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { eq, sql } from 'drizzle-orm';
-import { chatCostUsd, embeddingCostUsd, type RequestEvent } from '@twynn/shared';
+import {
+  chatCostUsd,
+  embeddingCostUsd,
+  type RequestEvent,
+  type ThresholdPreview,
+} from '@twynn/shared';
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { Database } from '../db/client';
 import { requestLogs } from '../db/schema';
@@ -420,6 +425,59 @@ ${state.text}`);
     const deadline = Date.now() + 2000;
     while (!done && Date.now() < deadline) done = (await reader.read()).done;
     expect(done).toBe(true);
+  });
+});
+
+describe('threshold preview', () => {
+  it('scores each twin search by its nearest candidate, served or not', async () => {
+    const t = await tenant();
+    await t.post(ask(FRANCE)); // nothing stored yet: no candidate
+    await t.post(ask(FRANCE)); // exact hit: no twin search
+    await t.post(ask(FRANCE_TWIN)); // twin hit at 0.99
+    await t.post(ask('Unrelated question')); // nearest candidate is orthogonal: score 0
+    await t.post(ask(FRANCE_TWIN), { 'X-Twynn-Cache-Control': 'no-cache' }); // bypass: no search
+    const rows = await rowsFor(t.keyId);
+    expect(rows.map((r) => r.nearestScore)).toEqual([
+      null,
+      null,
+      expect.closeTo(0.99, 6),
+      expect.closeTo(0, 6),
+      null,
+    ]);
+    expect(rows[3]?.matchedPrompt).toBe(FRANCE); // the closest stored prompt, even on a miss
+
+    const res = await t.browser.call('GET', '/api/analytics/threshold-preview');
+    expect(res.status).toBe(200);
+    const preview = (await res.json()) as ThresholdPreview;
+    expect(preview).toMatchObject({
+      days: 7,
+      searches: 2,
+      buckets: [
+        { score: 0, count: 1 },
+        { score: 0.99, count: 1 },
+      ],
+    });
+    expect(preview.examples).toEqual([
+      expect.objectContaining({
+        score: expect.closeTo(0.99, 6),
+        prompt: FRANCE_TWIN,
+        matchedPrompt: FRANCE,
+      }),
+    ]);
+  });
+
+  it('is scoped to the workspace and validates the window', async () => {
+    const a = await tenant();
+    await a.post(ask(FRANCE));
+    await a.post(ask(FRANCE_TWIN));
+    const b = await tenant();
+    const preview = (await (
+      await b.browser.call('GET', '/api/analytics/threshold-preview')
+    ).json()) as ThresholdPreview;
+    expect(preview).toMatchObject({ searches: 0, buckets: [], examples: [] });
+    expect((await b.browser.call('GET', '/api/analytics/threshold-preview?days=31')).status).toBe(
+      400,
+    );
   });
 });
 

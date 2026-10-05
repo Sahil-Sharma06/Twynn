@@ -168,9 +168,11 @@ export const requestLogs = pgTable(
     embeddingModel: text('embedding_model'),
     embeddingTokens: integer('embedding_tokens'),
     matchScore: doublePrecision('match_score'),
+    /** Closest twin candidate's score, served or not; null when no twin search ran. */
+    nearestScore: doublePrecision('nearest_score'),
     /** Final user message, truncated. */
     promptPreview: text('prompt_preview'),
-    /** For twin hits: the stored prompt that matched, truncated. */
+    /** The closest stored prompt from the twin search (the match, for twin hits), truncated. */
     matchedPrompt: text('matched_prompt'),
   },
   (t) => [index().on(t.workspaceId, t.createdAt.desc(), t.id.desc()), index().on(t.createdAt)],

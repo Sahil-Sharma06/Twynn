@@ -1,6 +1,7 @@
 import { and, desc, eq, gte, ilike, lt, or, sql, type SQL } from 'drizzle-orm';
 import {
   CACHE_LAYER,
+  PREVIEW_EXAMPLE_MIN_SCORE,
   PRICING,
   chatCostUsd,
   embeddingCostUsd,
@@ -12,6 +13,7 @@ import {
   type RequestDetailView,
   type RequestFilters,
   type RequestPage,
+  type ThresholdPreview,
   type Timeseries,
   type TimeseriesPoint,
 } from '@twynn/shared';
@@ -335,8 +337,50 @@ export async function getRequest(
   return {
     ...toLogView(row),
     matchedPrompt: row.matchedPrompt,
+    nearestScore: row.nearestScore,
     embeddingModel: row.embeddingModel,
     embeddingTokens: row.embeddingTokens,
+  };
+}
+
+/** Nearest-candidate score distribution of recent twin searches, for the threshold preview. */
+export async function thresholdPreview(
+  db: Database,
+  workspaceId: string,
+  days: number,
+): Promise<ThresholdPreview> {
+  const range = inRange(workspaceId, new Date(Date.now() - days * BUCKET_MS.day), new Date());
+  const searched = and(range, sql`${requestLogs.nearestScore} is not null`);
+  const milli = sql<number>`floor(${requestLogs.nearestScore} * 1000)::int`.mapWith(Number);
+  const [buckets, examples] = await Promise.all([
+    db
+      .select({ milli, count: num(sql`count(*)`) })
+      .from(requestLogs)
+      .where(searched)
+      .groupBy(milli)
+      .orderBy(milli),
+    db
+      .select({
+        requestId: requestLogs.id,
+        createdAt: requestLogs.createdAt,
+        score: requestLogs.nearestScore,
+        prompt: requestLogs.promptPreview,
+        matchedPrompt: requestLogs.matchedPrompt,
+      })
+      .from(requestLogs)
+      .where(and(searched, gte(requestLogs.nearestScore, PREVIEW_EXAMPLE_MIN_SCORE)))
+      .orderBy(desc(requestLogs.createdAt), desc(requestLogs.id))
+      .limit(100),
+  ]);
+  return {
+    days,
+    searches: buckets.reduce((n, b) => n + b.count, 0),
+    buckets: buckets.map((b) => ({ score: b.milli / 1000, count: b.count })),
+    examples: examples.map((e) => ({
+      ...e,
+      score: e.score ?? 0,
+      createdAt: e.createdAt.toISOString(),
+    })),
   };
 }
 

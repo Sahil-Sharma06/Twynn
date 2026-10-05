@@ -17,6 +17,9 @@ export interface MeterDraft {
   embeddingModel?: string;
   embeddingTokens?: number;
   matchScore?: number;
+  /** Score of the closest stored prompt the twin search found, whether or not it was served. */
+  nearestScore?: number;
+  /** That closest stored prompt (the match itself, for twin hits). */
   matchedPrompt?: string;
   /** For streamed responses: resolves once the stream ends, so late token counts are included. */
   settled?: Promise<void>;
@@ -120,6 +123,7 @@ export class RequestRecorder {
           embeddingModel: record.embeddingModel ?? null,
           embeddingTokens: record.embeddingTokens ?? null,
           matchScore: record.matchScore ?? null,
+          nearestScore: record.nearestScore ?? null,
           promptPreview: truncate(record.promptPreview),
           matchedPrompt: truncate(record.matchedPrompt),
         })

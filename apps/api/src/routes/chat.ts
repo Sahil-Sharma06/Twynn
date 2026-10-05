@@ -119,6 +119,10 @@ export function chatRoutes({ resolveTenant, cache, upstream, recorder }: ChatDep
       meter.embeddingModel = settings.embeddingModel;
       if (lookup.embedding.tokens !== null) meter.embeddingTokens = lookup.embedding.tokens;
     }
+    if (lookup.nearest) {
+      meter.nearestScore = lookup.nearest.score;
+      if (lookup.nearest.prompt !== null) meter.matchedPrompt = lookup.nearest.prompt;
+    }
     const callerWantsUsage =
       (request.stream_options as { include_usage?: unknown } | undefined)?.include_usage === true;
 
@@ -129,7 +133,6 @@ export function chatRoutes({ resolveTenant, cache, upstream, recorder }: ChatDep
       if (hit.layer === 'twin') {
         c.header(CACHE_HEADERS.matchScore, hit.score.toFixed(4));
         meter.matchScore = hit.score;
-        if (hit.matchedPrompt !== null) meter.matchedPrompt = hit.matchedPrompt;
       }
       if (request.stream) {
         sseHeaders(c);

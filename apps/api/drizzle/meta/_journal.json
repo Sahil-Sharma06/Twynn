@@ -43,6 +43,13 @@
       "when": 1791222202165,
       "tag": "0005_cache_entries",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791224197033,
+      "tag": "0006_request_nearest_score",
+      "breakpoints": true
     }
   ]
 }

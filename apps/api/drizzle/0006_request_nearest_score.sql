@@ -1,0 +1,1 @@
+ALTER TABLE "request_logs" ADD COLUMN "nearest_score" double precision;

@@ -69,8 +69,10 @@ export interface RequestLogView {
 }
 
 export interface RequestDetailView extends RequestLogView {
-  /** For twin hits: the stored prompt this request was matched to. */
+  /** The stored prompt the twin search found closest: the match itself for twin hits. */
   matchedPrompt: string | null;
+  /** Score of that closest stored prompt; null when no twin search ran. */
+  nearestScore: number | null;
   embeddingModel: string | null;
   embeddingTokens: number | null;
 }
@@ -147,4 +149,33 @@ export interface ModelBreakdown {
 export interface RequestEvent {
   type: 'request';
   request: RequestLogView;
+}
+
+export const thresholdPreviewQuerySchema = z.object({
+  days: z.coerce.number().int().min(1).max(30).default(7),
+});
+
+/** How the workspace's recent twin searches scored, to preview a different twin threshold. */
+export interface ThresholdPreview {
+  days: number;
+  /** Twin searches in the window that found a candidate (requests that missed Layer 1). */
+  searches: number;
+  /** Nearest-candidate scores, floored to 0.001, with how many searches scored each. */
+  buckets: Array<{ score: number; count: number }>;
+  /** Recent searches scoring at least EXAMPLE_MIN_SCORE, newest first, to show real borderline pairs. */
+  examples: Array<{
+    requestId: string;
+    createdAt: string;
+    score: number;
+    prompt: string | null;
+    matchedPrompt: string | null;
+  }>;
+}
+
+export const PREVIEW_EXAMPLE_MIN_SCORE = 0.75;
+
+/** Searches in a preview whose nearest candidate would be served at `threshold` (inclusive). */
+export function twinHitsAt(buckets: ThresholdPreview['buckets'], threshold: number): number {
+  const min = Math.round(threshold * 1000);
+  return buckets.reduce((n, b) => (Math.round(b.score * 1000) >= min ? n + b.count : n), 0);
 }

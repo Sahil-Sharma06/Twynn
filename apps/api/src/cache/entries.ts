@@ -22,10 +22,13 @@ export interface TwinMatch {
   score: number;
 }
 
-export interface TwinQuery {
+export interface NearestQuery {
   workspaceId: string;
   scopeHash: string;
   embedding: number[];
+}
+
+export interface TwinQuery extends NearestQuery {
   threshold: number;
 }
 
@@ -72,12 +75,18 @@ export class EntryStore {
     private readonly logger: Logger,
   ) {}
 
-  async findTwin({
+  /** The twin candidate at or above the threshold (inclusive), if any. */
+  async findTwin({ threshold, ...query }: TwinQuery): Promise<TwinMatch | null> {
+    const nearest = await this.findNearest(query);
+    return nearest && nearest.score >= threshold ? nearest : null;
+  }
+
+  /** The closest live entry in the same scope, whatever its score. Failures read as none. */
+  async findNearest({
     workspaceId,
     scopeHash,
     embedding,
-    threshold,
-  }: TwinQuery): Promise<TwinMatch | null> {
+  }: NearestQuery): Promise<TwinMatch | null> {
     const dimensions = embedding.length;
     // The cast must be a literal for the planner to match the partial index; dimensions is an
     // integer we validated, never user text.
@@ -106,10 +115,8 @@ export class EntryStore {
           .orderBy(distance)
           .limit(1);
       });
-      if (!row) return null;
-      const score = 1 - row.distance;
-      return score >= threshold
-        ? { id: row.id, prompt: row.prompt, response: row.response, score }
+      return row
+        ? { id: row.id, prompt: row.prompt, response: row.response, score: 1 - row.distance }
         : null;
     } catch (err) {
       this.logger.warn({ err }, 'twin lookup failed; treating as miss');

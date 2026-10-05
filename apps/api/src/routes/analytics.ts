@@ -1,13 +1,25 @@
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { z } from 'zod';
-import { rangeQuerySchema, requestFiltersSchema, type RequestEvent } from '@twynn/shared';
+import {
+  rangeQuerySchema,
+  requestFiltersSchema,
+  thresholdPreviewQuerySchema,
+  type RequestEvent,
+} from '@twynn/shared';
 import { requireSession, type SessionCookie } from '../auth/middleware';
 import type { Database } from '../db/client';
 import { GatewayError } from '../lib/errors';
 import type { EventBus } from '../lib/events';
 import { parseQuery } from '../lib/validation';
-import { getRequest, listRequests, models, summary, timeseries } from '../metering/analytics';
+import {
+  getRequest,
+  listRequests,
+  models,
+  summary,
+  thresholdPreview,
+  timeseries,
+} from '../metering/analytics';
 import type { AppEnv } from '../types';
 
 export interface AnalyticsDeps {
@@ -44,6 +56,10 @@ export function analyticsRoutes({
   routes.get('/analytics/models', authed, async (c) =>
     c.json({ models: await models(db, ws(c), parseQuery(c, rangeQuerySchema)) }),
   );
+  routes.get('/analytics/threshold-preview', authed, async (c) => {
+    const { days } = parseQuery(c, thresholdPreviewQuerySchema);
+    return c.json(await thresholdPreview(db, ws(c), days));
+  });
 
   routes.get('/requests', authed, async (c) =>
     c.json(await listRequests(db, ws(c), parseQuery(c, requestFiltersSchema))),
