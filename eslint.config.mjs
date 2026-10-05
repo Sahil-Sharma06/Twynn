@@ -14,6 +14,11 @@ export default tseslint.config(
     },
   },
   {
+    // In tests a missing value should fail the assertion, so `!` is acceptable there.
+    files: ['**/*.test.ts'],
+    rules: { '@typescript-eslint/no-non-null-assertion': 'off' },
+  },
+  {
     files: ['apps/web/src/**'],
     languageOptions: { globals: { ...globals.browser } },
   },
