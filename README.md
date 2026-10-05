@@ -39,3 +39,14 @@ Every gateway request is recorded with its cache layer, latency, provider-report
 | `packages/shared` | Product constants, vocabulary, shared types     |
 
 Environment variables use the `TWYNN_` prefix and are validated at startup in `apps/api/src/config.ts`; see `.env.example`.
+
+## Third-party assets
+
+The visual identity (logo mark, palette, layouts and copy) is original to Twynn. Fonts and icons are open-licensed and self-hosted:
+
+| Asset                                                                                                             | Use       | License                   |
+| ----------------------------------------------------------------------------------------------------------------- | --------- | ------------------------- |
+| [Bricolage Grotesque](https://github.com/ateliertriay/bricolage) (via `@fontsource-variable/bricolage-grotesque`) | Headings  | SIL Open Font License 1.1 |
+| [Instrument Sans](https://github.com/Instrument/instrument-sans) (via `@fontsource-variable/instrument-sans`)     | Body text | SIL Open Font License 1.1 |
+| [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono) (via `@fontsource-variable/jetbrains-mono`)          | Code      | SIL Open Font License 1.1 |
+| [Lucide](https://lucide.dev) (via `lucide-react`)                                                                 | Icons     | ISC                       |

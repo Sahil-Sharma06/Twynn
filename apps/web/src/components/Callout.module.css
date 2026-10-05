@@ -1,0 +1,49 @@
+.callout {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  font-size: var(--text-sm);
+}
+
+.icon {
+  flex: none;
+  margin-top: 2px;
+}
+
+.body {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.title {
+  font-weight: 650;
+}
+
+.info {
+  background: var(--color-accent-soft);
+  color: var(--color-text);
+}
+
+.info .icon {
+  color: var(--color-accent);
+}
+
+.warning {
+  background: var(--color-warning-soft);
+  color: var(--color-text);
+}
+
+.warning .icon {
+  color: var(--color-warning);
+}
+
+.error {
+  background: var(--color-danger-soft);
+  color: var(--color-text);
+}
+
+.error .icon {
+  color: var(--color-danger);
+}

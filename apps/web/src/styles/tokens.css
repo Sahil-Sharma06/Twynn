@@ -1,0 +1,90 @@
+/*
+ * Twynn design tokens: the single source for colour, type, space, shape and motion.
+ * Each colour is defined once for both themes with light-dark(); the theme switch sets
+ * color-scheme on <html> (see lib/theme.ts).
+ *
+ * Colour roles: "exact" (Layer 1) is indigo, "twin" (Layer 2) is teal, upstream misses are
+ * neutral. Text pairs are checked for WCAG AA in src/styles/contrast.test.ts.
+ */
+:root {
+  color-scheme: light dark;
+
+  /* Surfaces and text */
+  --color-bg: light-dark(#faf9f6, #11101a);
+  --color-surface: light-dark(#ffffff, #191823);
+  --color-surface-sunken: light-dark(#f2f0eb, #0c0b13);
+  --color-surface-raised: light-dark(#ffffff, #221f2e);
+  --color-border: light-dark(#e3dfd6, #2e2b3c);
+  --color-border-strong: light-dark(#c9c3b6, #46425a);
+  --color-text: light-dark(#1b1924, #eeecf5);
+  --color-text-muted: light-dark(#5b5768, #a9a5b8);
+  --color-text-faint: light-dark(#6f6a7c, #8d899e);
+
+  /* Brand and roles */
+  --color-accent: light-dark(#4b3ccc, #a196ff);
+  --color-accent-hover: light-dark(#3d2fb3, #b8afff);
+  --color-accent-soft: light-dark(#ecebfd, #25213f);
+  --color-on-accent: light-dark(#ffffff, #12101f);
+  --color-exact: var(--color-accent);
+  --color-exact-soft: var(--color-accent-soft);
+  --color-twin: light-dark(#0b7a5e, #4fd8ac);
+  --color-twin-soft: light-dark(#e0f4ee, #12302a);
+  --color-upstream: light-dark(#6f6a7c, #8d899e);
+  --color-upstream-soft: light-dark(#eeece7, #24222f);
+  --color-danger: light-dark(#b42d26, #ff8a80);
+  --color-danger-soft: light-dark(#fbe9e7, #3a1c1b);
+  --color-warning: light-dark(#8a5a00, #f2c14e);
+  --color-warning-soft: light-dark(#fbf1dc, #33280f);
+  --color-focus: light-dark(#4b3ccc, #a196ff);
+
+  /* Type */
+  --font-display: 'Bricolage Grotesque Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.25rem;
+  --text-4xl: clamp(2.5rem, 5vw + 1rem, 4rem);
+  --leading-tight: 1.15;
+  --leading-normal: 1.55;
+
+  /* Space (4px base) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+  --space-9: 6rem;
+
+  /* Shape */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+  --shadow-sm: 0 1px 2px light-dark(rgb(27 25 36 / 0.06), rgb(0 0 0 / 0.4));
+  --shadow-md: 0 6px 24px -8px light-dark(rgb(27 25 36 / 0.16), rgb(0 0 0 / 0.6));
+  --content-width: 72rem;
+
+  /* Motion: quick and eased; everything is disabled under prefers-reduced-motion (global.css). */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 420ms;
+  --duration-story: 900ms;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}

@@ -1,0 +1,38 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.exact {
+  background: var(--color-exact-soft);
+  color: var(--color-exact);
+}
+
+.twin {
+  background: var(--color-twin-soft);
+  color: var(--color-twin);
+}
+
+.upstream {
+  background: var(--color-upstream-soft);
+  color: var(--color-text-muted);
+}
+
+.error {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}

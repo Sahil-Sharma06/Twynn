@@ -1,0 +1,17 @@
+.page {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-4);
+  max-width: 32rem;
+  margin: 0 auto;
+  padding: var(--space-9) var(--space-4);
+  text-align: center;
+}
+
+.page h1 {
+  font-size: var(--text-3xl);
+}
+
+.page p {
+  color: var(--color-text-muted);
+}

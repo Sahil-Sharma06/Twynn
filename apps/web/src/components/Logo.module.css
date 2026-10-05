@@ -1,0 +1,64 @@
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text);
+}
+
+.wordmark {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.3rem;
+  letter-spacing: -0.03em;
+}
+
+.mark {
+  flex: none;
+  overflow: visible;
+}
+
+.a {
+  fill: var(--color-exact);
+}
+
+.b {
+  fill: none;
+  stroke: var(--color-twin);
+  stroke-width: 2;
+}
+
+.overlap {
+  fill: var(--color-twin);
+}
+
+.animated .a {
+  animation: approach-a var(--duration-story) var(--ease-out) both;
+}
+
+.animated .b {
+  animation: approach-b var(--duration-story) var(--ease-out) both;
+}
+
+.animated .overlap {
+  animation: match var(--duration-slow) var(--ease-out) var(--duration-story) both;
+}
+
+@keyframes approach-a {
+  from {
+    transform: translate(-4px, -3px);
+    opacity: 0;
+  }
+}
+
+@keyframes approach-b {
+  from {
+    transform: translate(4px, 3px);
+    opacity: 0;
+  }
+}
+
+@keyframes match {
+  from {
+    opacity: 0;
+  }
+}

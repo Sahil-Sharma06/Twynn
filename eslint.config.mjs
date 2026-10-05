@@ -15,7 +15,7 @@ export default tseslint.config(
   },
   {
     // In tests a missing value should fail the assertion, so `!` is acceptable there.
-    files: ['**/*.test.ts'],
+    files: ['**/*.test.{ts,tsx}'],
     rules: { '@typescript-eslint/no-non-null-assertion': 'off' },
   },
   {
