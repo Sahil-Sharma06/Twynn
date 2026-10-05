@@ -9,6 +9,12 @@ export type CacheStatus = (typeof CACHE_STATUS)[number];
 export const CACHE_LAYER = ['exact', 'twin', 'upstream'] as const;
 export type CacheLayer = (typeof CACHE_LAYER)[number];
 
+/** Response headers the gateway sets on every proxied request. */
+export const CACHE_HEADERS = {
+  status: 'X-Twynn-Cache',
+  layer: 'X-Twynn-Cache-Layer',
+} as const;
+
 /** Single source of truth for user-facing terminology. */
 export const VOCABULARY = {
   exactHit: { label: 'Exact hit', technical: 'Layer 1 exact-match cache hit' },

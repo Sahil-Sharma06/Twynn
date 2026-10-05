@@ -2,6 +2,8 @@ import { serve } from '@hono/node-server';
 import { sql } from 'drizzle-orm';
 import { PRODUCT_NAME } from '@twynn/shared';
 import { createApp } from './app';
+import { createRedisExactCache } from './cache/exact';
+import { UpstreamClient } from './upstream/client';
 import { loadConfig } from './config';
 import { createDb } from './db/client';
 import { createLogger } from './lib/logger';
@@ -14,6 +16,16 @@ const redis = createRedis(config.TWYNN_REDIS_URL, logger);
 await redis.connect();
 
 const app = createApp({
+  logger,
+  chat: {
+    cache: createRedisExactCache(redis, logger),
+    upstream: new UpstreamClient({
+      baseUrl: config.TWYNN_UPSTREAM_BASE_URL,
+      timeoutMs: config.TWYNN_UPSTREAM_TIMEOUT_MS,
+      maxRetries: config.TWYNN_UPSTREAM_MAX_RETRIES,
+    }),
+    cacheTtlSeconds: config.TWYNN_EXACT_CACHE_TTL_SECONDS,
+  },
   checks: {
     postgres: async () => {
       await db.execute(sql`select 1`);

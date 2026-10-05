@@ -1,12 +1,22 @@
 import { Hono } from 'hono';
-import { PRODUCT_NAME } from '@twynn/shared';
+import { bodyLimit } from 'hono/body-limit';
+import { requestId } from 'hono/request-id';
+import { CACHE_HEADERS, PRODUCT_NAME } from '@twynn/shared';
+import type { Logger } from 'pino';
+import { GatewayError } from './lib/errors';
+import { chatRoutes, type ChatDeps } from './routes/chat';
+import { ClientAbortedError } from './upstream/client';
 
 export type HealthCheck = () => Promise<void>;
 
 export interface AppDeps {
+  logger: Logger;
   checks: Record<string, HealthCheck>;
+  chat: ChatDeps;
   healthTimeoutMs?: number;
 }
+
+const MAX_BODY_BYTES = 4 * 1024 * 1024;
 
 function withTimeout(promise: Promise<void>, ms: number): Promise<void> {
   let timer: NodeJS.Timeout | undefined;
@@ -16,8 +26,25 @@ function withTimeout(promise: Promise<void>, ms: number): Promise<void> {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
-export function createApp({ checks, healthTimeoutMs = 2_000 }: AppDeps): Hono {
+export function createApp({ logger, checks, chat, healthTimeoutMs = 2_000 }: AppDeps): Hono {
   const app = new Hono();
+
+  app.use(requestId());
+  app.use(async (c, next) => {
+    const start = performance.now();
+    await next();
+    logger.info(
+      {
+        requestId: c.get('requestId'),
+        method: c.req.method,
+        path: c.req.path,
+        status: c.res.status,
+        cache: c.res.headers.get(CACHE_HEADERS.status) ?? undefined,
+        ms: Math.round(performance.now() - start),
+      },
+      'request',
+    );
+  });
 
   app.get('/health', async (c) => {
     const entries = await Promise.all(
@@ -39,6 +66,41 @@ export function createApp({ checks, healthTimeoutMs = 2_000 }: AppDeps): Hono {
       },
       healthy ? 200 : 503,
     );
+  });
+
+  app.use(
+    '/v1/*',
+    bodyLimit({
+      maxSize: MAX_BODY_BYTES,
+      onError: () => {
+        throw new GatewayError(
+          413,
+          'invalid_request_error',
+          `Request body exceeds ${MAX_BODY_BYTES / 1024 / 1024}MB.`,
+          'request_too_large',
+        );
+      },
+    }),
+  );
+  app.route('/v1', chatRoutes(chat));
+
+  app.notFound((c) =>
+    c.json(
+      new GatewayError(
+        404,
+        'not_found_error',
+        `No route for ${c.req.method} ${c.req.path}.`,
+      ).toBody(),
+      404,
+    ),
+  );
+
+  app.onError((err, c) => {
+    if (err instanceof GatewayError) return c.json(err.toBody(), err.status);
+    // The caller is gone; nothing useful can be sent. 499 mirrors the common proxy convention.
+    if (err instanceof ClientAbortedError) return new Response(null, { status: 499 });
+    logger.error({ err, requestId: c.get('requestId') }, 'unhandled error');
+    return c.json(new GatewayError(500, 'api_error', 'Internal gateway error.').toBody(), 500);
   });
 
   return app;
