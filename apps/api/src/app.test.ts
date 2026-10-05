@@ -22,4 +22,12 @@ describe('GET /health', () => {
     expect(res.status).toBe(503);
     expect(await res.json()).toMatchObject({ status: 'degraded', checks: { redis: 'down' } });
   });
+
+  it('marks a hanging dependency as down instead of blocking', async () => {
+    const hang = () => new Promise<void>(() => {});
+    const app = createApp({ checks: { postgres: ok, redis: hang }, healthTimeoutMs: 20 });
+    const res = await app.request('/health');
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ checks: { postgres: 'ok', redis: 'down' } });
+  });
 });

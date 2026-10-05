@@ -5,16 +5,25 @@ export type HealthCheck = () => Promise<void>;
 
 export interface AppDeps {
   checks: Record<string, HealthCheck>;
+  healthTimeoutMs?: number;
 }
 
-export function createApp({ checks }: AppDeps): Hono {
+function withTimeout(promise: Promise<void>, ms: number): Promise<void> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+export function createApp({ checks, healthTimeoutMs = 2_000 }: AppDeps): Hono {
   const app = new Hono();
 
   app.get('/health', async (c) => {
     const entries = await Promise.all(
       Object.entries(checks).map(async ([name, check]) => {
         try {
-          await check();
+          await withTimeout(check(), healthTimeoutMs);
           return [name, 'ok'] as const;
         } catch {
           return [name, 'down'] as const;
