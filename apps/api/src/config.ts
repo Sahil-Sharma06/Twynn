@@ -36,6 +36,8 @@ const envSchema = z.object({
   TWYNN_PLAYGROUND_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(0).default(30),
   /** Requests per workspace per UTC day, gateway and playground together (0 means unlimited). */
   TWYNN_DAILY_REQUEST_QUOTA: z.coerce.number().int().min(0).default(0),
+  /** Sign-ups allowed per client address per hour. */
+  TWYNN_SIGNUPS_PER_IP_PER_HOUR: z.coerce.number().int().min(0).default(10),
   /** Trust X-Forwarded-For for client IPs. Enable only behind a reverse proxy that sets it. */
   TWYNN_TRUST_PROXY: z
     .enum(['true', 'false'])

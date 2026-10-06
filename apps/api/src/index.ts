@@ -49,7 +49,10 @@ const guard: Guard = {
   playgroundPerMinute: config.TWYNN_PLAYGROUND_RATE_LIMIT_PER_MINUTE,
   dailyQuota: config.TWYNN_DAILY_REQUEST_QUOTA,
   trustProxy: config.TWYNN_TRUST_PROXY,
-  auth: AUTH_LIMITS,
+  auth: {
+    ...AUTH_LIMITS,
+    signupPerIp: { ...AUTH_LIMITS.signupPerIp, max: config.TWYNN_SIGNUPS_PER_IP_PER_HOUR },
+  },
 };
 
 const app = createApp({

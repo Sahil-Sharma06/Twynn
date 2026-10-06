@@ -15,7 +15,8 @@
     "dev": "concurrently -n api,web -c cyan,magenta \"npm run dev -w @twynn/api\" \"npm run dev -w @twynn/web\"",
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "typecheck": "tsc --noEmit -p packages/shared && tsc --noEmit -p apps/api && tsc --noEmit -p apps/web",
+    "typecheck": "tsc --noEmit -p packages/shared && tsc --noEmit -p apps/api && tsc --noEmit -p apps/web && tsc --noEmit -p e2e",
+    "test:e2e": "playwright test",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -26,7 +27,9 @@
     "db:generate": "npm run db:generate -w @twynn/api"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
     "@types/node": "^22.19.1",
     "concurrently": "^8.2.2",
     "eslint": "^10.12.0",
