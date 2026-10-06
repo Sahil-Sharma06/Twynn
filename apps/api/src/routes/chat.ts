@@ -11,6 +11,7 @@ import {
 } from '@twynn/shared';
 import { requireSession, type SessionCookie } from '../auth/middleware';
 import type { Database } from '../db/client';
+import { rateLimitHeaders, type Guard } from '../lib/rate-limit';
 import type { CacheContext, CacheManager } from '../cache/manager';
 import { GatewayError, normalizeUpstreamError } from '../lib/errors';
 import { parseJsonBody } from '../lib/validation';
@@ -27,6 +28,7 @@ export interface ChatDeps {
   cache: CacheManager;
   upstream: UpstreamClient;
   recorder: RequestRecorder;
+  guard: Guard;
 }
 
 export interface PlaygroundDeps extends ChatDeps {
@@ -194,13 +196,33 @@ async function complete(c: Context<AppEnv>, tenant: Tenant, { cache, upstream }:
   return c.body(res.text, 200, { 'content-type': 'application/json' });
 }
 
+const DAY_SECONDS = 86_400;
+
+/** The workspace's daily request quota, shared by gateway keys and the playground. */
+async function enforceDailyQuota(guard: Guard, workspaceId: string): Promise<void> {
+  await guard.limiter.enforce(
+    { name: 'workspace-day', max: guard.dailyQuota, windowSeconds: DAY_SECONDS },
+    workspaceId,
+    `This workspace has used its daily quota of ${guard.dailyQuota} requests. It resets at midnight UTC.`,
+  );
+}
+
 /** OpenAI-compatible endpoint for apps, authenticated with a gateway key. */
 export function chatRoutes(deps: ChatDeps): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
   routes.use('/chat/completions', meterRequests(deps.recorder, 'api'));
-  routes.post('/chat/completions', async (c) =>
-    complete(c, await authenticate(c, deps.resolveTenant), deps),
-  );
+  routes.post('/chat/completions', async (c) => {
+    const tenant = await authenticate(c, deps.resolveTenant);
+    const { guard } = deps;
+    const perKey = await guard.limiter.enforce(
+      { name: 'key-minute', max: guard.keyPerMinute, windowSeconds: 60 },
+      tenant.keyId ?? tenant.workspaceId,
+      `Rate limit of ${guard.keyPerMinute} requests per minute reached for this key. Retry after the time in the Retry-After header.`,
+    );
+    await enforceDailyQuota(guard, tenant.workspaceId);
+    for (const [name, value] of Object.entries(rateLimitHeaders(perKey))) c.header(name, value);
+    return complete(c, tenant, deps);
+  });
   return routes;
 }
 
@@ -216,8 +238,16 @@ export function playgroundRoutes(deps: PlaygroundDeps): Hono<AppEnv> {
     requireSession(deps.db, deps.cookie),
     meterRequests(deps.recorder, 'playground'),
   );
-  routes.post(path, async (c) =>
-    complete(c, await deps.loadWorkspace(c.get('session').workspace.id), deps),
-  );
+  routes.post(path, async (c) => {
+    const workspaceId = c.get('session').workspace.id;
+    const { guard } = deps;
+    await guard.limiter.enforce(
+      { name: 'playground-minute', max: guard.playgroundPerMinute, windowSeconds: 60 },
+      workspaceId,
+      `The playground allows ${guard.playgroundPerMinute} requests per minute. Wait a moment and try again.`,
+    );
+    await enforceDailyQuota(guard, workspaceId);
+    return complete(c, await deps.loadWorkspace(workspaceId), deps);
+  });
   return routes;
 }

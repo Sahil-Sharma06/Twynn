@@ -124,7 +124,7 @@ export function createApp({
   );
 
   app.onError((err, c) => {
-    if (err instanceof GatewayError) return c.json(err.toBody(), err.status);
+    if (err instanceof GatewayError) return c.json(err.toBody(), err.status, err.headers);
     // The caller is gone; nothing useful can be sent. 499 mirrors the common proxy convention.
     if (err instanceof ClientAbortedError) return new Response(null, { status: 499 });
     logger.error({ err, requestId: c.get('requestId') }, 'unhandled error');

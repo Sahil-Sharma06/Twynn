@@ -30,6 +30,17 @@ const envSchema = z.object({
   /** Embeddings calls sit on the request path of every exact miss, so they get a tighter budget. */
   TWYNN_LOG_RETENTION_DAYS: z.coerce.number().int().min(1).max(3650).default(90),
   TWYNN_EMBEDDING_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
+  /** Requests per minute allowed per gateway key (0 disables). */
+  TWYNN_KEY_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(0).default(600),
+  /** Playground requests per minute allowed per workspace (0 disables). */
+  TWYNN_PLAYGROUND_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(0).default(30),
+  /** Requests per workspace per UTC day, gateway and playground together (0 means unlimited). */
+  TWYNN_DAILY_REQUEST_QUOTA: z.coerce.number().int().min(0).default(0),
+  /** Trust X-Forwarded-For for client IPs. Enable only behind a reverse proxy that sets it. */
+  TWYNN_TRUST_PROXY: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
 });
 
 export type Config = z.infer<typeof envSchema>;

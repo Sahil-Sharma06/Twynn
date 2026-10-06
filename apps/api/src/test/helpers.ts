@@ -12,6 +12,7 @@ import type { ExactCache } from '../cache/exact';
 import { CacheManager } from '../cache/manager';
 import type { Database } from '../db/client';
 import { MemoryEventBus, type EventBus } from '../lib/events';
+import { MemoryCounter, RateLimiter, type Guard, type Limit } from '../lib/rate-limit';
 import { RequestRecorder } from '../metering/recorder';
 import * as schema from '../db/schema';
 import { Embedder } from '../semantic/embeddings';
@@ -123,6 +124,26 @@ export interface TestAppOptions extends Partial<Pick<AppDeps, 'checks' | 'health
   events?: EventBus;
   recorder?: RequestRecorder;
   shutdown?: AbortSignal;
+  /** Limits to apply; by default every limit is off so suites can create many accounts. */
+  guard?: Partial<Guard>;
+}
+
+const off = (name: string): Limit => ({ name, max: 0, windowSeconds: 60 });
+
+export function testGuard(overrides: Partial<Guard> = {}): Guard {
+  return {
+    limiter: new RateLimiter(new MemoryCounter()),
+    keyPerMinute: 0,
+    playgroundPerMinute: 0,
+    dailyQuota: 0,
+    trustProxy: false,
+    auth: {
+      loginPerEmail: off('login-email'),
+      loginPerIp: off('login-ip'),
+      signupPerIp: off('signup-ip'),
+    },
+    ...overrides,
+  };
 }
 
 export type TestApp = ReturnType<typeof createApp>;
@@ -131,6 +152,7 @@ export function buildApp(options: TestAppOptions): TestApp {
   const { db } = options;
   const production = options.production ?? false;
   const cookie = sessionCookie(production);
+  const guard = testGuard(options.guard);
   const events = options.events ?? new MemoryEventBus();
   const entries = new EntryStore(db, silentLogger);
   const providers = new ProviderStore(db, randomBytes(32));
@@ -156,6 +178,7 @@ export function buildApp(options: TestAppOptions): TestApp {
       cache,
       upstream,
       recorder: options.recorder ?? new RequestRecorder(db, events, silentLogger),
+      guard,
     },
     dashboard: {
       db,
@@ -164,6 +187,7 @@ export function buildApp(options: TestAppOptions): TestApp {
       sessionTtlDays: 30,
       production,
       gatewayUrl: 'https://gateway.test/v1',
+      guard,
     },
     analytics: {
       db,

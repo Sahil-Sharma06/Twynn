@@ -6,6 +6,7 @@ export type ErrorType =
   | 'not_found_error'
   | 'upstream_error'
   | 'timeout_error'
+  | 'rate_limit_error'
   | 'api_error';
 
 /** Error body in the shape OpenAI clients already know how to parse. */
@@ -20,6 +21,8 @@ export class GatewayError extends Error {
     message: string,
     readonly code: string | null = null,
     readonly param: string | null = null,
+    /** Extra response headers, e.g. Retry-After on a 429. */
+    readonly headers: Record<string, string> = {},
   ) {
     super(message);
     this.name = 'GatewayError';

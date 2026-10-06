@@ -16,7 +16,9 @@ import {
   type SessionCookie,
 } from '../auth/middleware';
 import type { Database } from '../db/client';
+import { sha256 } from '../lib/crypto';
 import { GatewayError } from '../lib/errors';
+import { clientIp, type Guard } from '../lib/rate-limit';
 import { providerUrlProblem } from '../lib/url-safety';
 import { parseJsonBody } from '../lib/validation';
 import { authenticate, signup } from '../services/accounts';
@@ -38,6 +40,7 @@ export interface DashboardDeps {
   sessionTtlDays: number;
   production: boolean;
   gatewayUrl: string;
+  guard: Guard;
 }
 
 const notFound = (what: string) => new GatewayError(404, 'not_found_error', `${what} not found.`);
@@ -61,7 +64,11 @@ export function dashboardRoutes(deps: DashboardDeps): Hono<AppEnv> {
   routes.get('/config', (c) => c.json({ gatewayUrl: deps.gatewayUrl } satisfies PublicConfig));
 
   // Auth
+  const tooManyAttempts = 'Too many attempts. Wait a few minutes and try again.';
+
   routes.post('/auth/signup', async (c) => {
+    const ip = await clientIp(c, deps.guard.trustProxy);
+    await deps.guard.limiter.enforce(deps.guard.auth.signupPerIp, ip, tooManyAttempts);
     const input = await parseJsonBody(c, signupSchema);
     const userId = await signup(db, input);
     return c.json(await startSession(c, userId), 201);
@@ -69,6 +76,14 @@ export function dashboardRoutes(deps: DashboardDeps): Hono<AppEnv> {
 
   routes.post('/auth/login', async (c) => {
     const { email, password } = await parseJsonBody(c, loginSchema);
+    // Count every attempt, by address and by account, before checking the password.
+    const ip = await clientIp(c, deps.guard.trustProxy);
+    await deps.guard.limiter.enforce(deps.guard.auth.loginPerIp, ip, tooManyAttempts);
+    await deps.guard.limiter.enforce(
+      deps.guard.auth.loginPerEmail,
+      sha256(email.toLowerCase()),
+      tooManyAttempts,
+    );
     const userId = await authenticate(db, email, password);
     if (!userId) {
       throw new GatewayError(

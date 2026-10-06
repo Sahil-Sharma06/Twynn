@@ -18,6 +18,7 @@ import { Embedder } from './semantic/embeddings';
 import { ProviderStore } from './services/providers';
 import { createTenantResolver, createWorkspaceLoader } from './services/tenancy';
 import { UpstreamClient } from './upstream/client';
+import { AUTH_LIMITS, createRedisCounter, RateLimiter, type Guard } from './lib/rate-limit';
 
 const config = loadConfig();
 const production = config.NODE_ENV === 'production';
@@ -42,6 +43,14 @@ const cache = new CacheManager(
 );
 const recorder = new RequestRecorder(db, events, logger);
 const cookie = sessionCookie(production);
+const guard: Guard = {
+  limiter: new RateLimiter(createRedisCounter(redis, logger)),
+  keyPerMinute: config.TWYNN_KEY_RATE_LIMIT_PER_MINUTE,
+  playgroundPerMinute: config.TWYNN_PLAYGROUND_RATE_LIMIT_PER_MINUTE,
+  dailyQuota: config.TWYNN_DAILY_REQUEST_QUOTA,
+  trustProxy: config.TWYNN_TRUST_PROXY,
+  auth: AUTH_LIMITS,
+};
 
 const app = createApp({
   logger,
@@ -55,6 +64,7 @@ const app = createApp({
       maxRetries: config.TWYNN_UPSTREAM_MAX_RETRIES,
     }),
     recorder,
+    guard,
   },
   dashboard: {
     db,
@@ -63,6 +73,7 @@ const app = createApp({
     sessionTtlDays: config.TWYNN_SESSION_TTL_DAYS,
     production,
     gatewayUrl: config.TWYNN_PUBLIC_GATEWAY_URL,
+    guard,
   },
   analytics: { db, cookie, events, shutdown: shutdownController.signal },
   cacheAdmin: { db, cookie, entries, cache },
