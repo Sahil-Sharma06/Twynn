@@ -1,0 +1,76 @@
+# Production stack: Postgres (pgvector), Redis, a one-off migration, the API and the
+# dashboard (nginx, also proxying the gateway). Configure with a .env.production file;
+# see docs/DEPLOY.md. Run: docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+name: twynn-prod
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: twynn
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: twynn
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U twynn -d twynn']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    build: { context: ., dockerfile: apps/api/Dockerfile }
+    image: twynn-api
+    command: ['node', 'dist/db/migrate.js']
+    environment: &api-env
+      NODE_ENV: production
+      TWYNN_DB_URL: postgres://twynn:${POSTGRES_PASSWORD}@postgres:5432/twynn
+      TWYNN_REDIS_URL: redis://redis:6379
+      TWYNN_ENCRYPTION_KEY: ${TWYNN_ENCRYPTION_KEY:?set TWYNN_ENCRYPTION_KEY}
+      TWYNN_WEB_ORIGIN: ${TWYNN_PUBLIC_ORIGIN:?set TWYNN_PUBLIC_ORIGIN}
+      TWYNN_PUBLIC_GATEWAY_URL: ${TWYNN_PUBLIC_ORIGIN}/v1
+      # nginx overwrites X-Forwarded-For with the real peer address.
+      TWYNN_TRUST_PROXY: 'true'
+      TWYNN_LOG_LEVEL: ${TWYNN_LOG_LEVEL:-info}
+      TWYNN_KEY_RATE_LIMIT_PER_MINUTE: ${TWYNN_KEY_RATE_LIMIT_PER_MINUTE:-600}
+      TWYNN_PLAYGROUND_RATE_LIMIT_PER_MINUTE: ${TWYNN_PLAYGROUND_RATE_LIMIT_PER_MINUTE:-30}
+      TWYNN_DAILY_REQUEST_QUOTA: ${TWYNN_DAILY_REQUEST_QUOTA:-0}
+      TWYNN_LOG_RETENTION_DAYS: ${TWYNN_LOG_RETENTION_DAYS:-90}
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: 'no'
+
+  api:
+    image: twynn-api
+    restart: unless-stopped
+    environment: *api-env
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    stop_grace_period: 15s
+
+  web:
+    build: { context: ., dockerfile: apps/web/Dockerfile }
+    image: twynn-web
+    restart: unless-stopped
+    ports:
+      - '${TWYNN_HTTP_PORT:-8080}:80'
+    depends_on:
+      api: { condition: service_healthy }
+
+volumes:
+  pgdata:
+  redisdata:

@@ -1,0 +1,52 @@
+# Dashboard (static), gateway (/v1), dashboard API (/api) and health on one origin.
+server {
+  listen 80;
+  server_name _;
+  server_tokens off;
+  root /usr/share/nginx/html;
+
+  # Matches the API's 4 MB body limit, with headroom for headers.
+  client_max_body_size 5m;
+
+  add_header X-Content-Type-Options nosniff always;
+  add_header Referrer-Policy strict-origin-when-cross-origin always;
+  add_header X-Frame-Options DENY always;
+  add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+  add_header Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
+
+  location ~ ^/(v1|api)/ {
+    proxy_pass ${TWYNN_API_UPSTREAM};
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    # Overwrite, never append: a client-supplied X-Forwarded-For must not be trusted.
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Connection "";
+    # Streamed completions and the live dashboard feed are Server-Sent Events.
+    proxy_buffering off;
+    proxy_cache off;
+    proxy_read_timeout 1h;
+    proxy_send_timeout 1h;
+  }
+
+  location = /health {
+    proxy_pass ${TWYNN_API_UPSTREAM};
+  }
+
+  # Hashed build assets never change.
+  location /assets/ {
+    add_header Cache-Control "public, max-age=31536000, immutable" always;
+    add_header X-Content-Type-Options nosniff always;
+    try_files $uri =404;
+  }
+
+  # Client-side routes fall back to the app shell, which is never cached.
+  location / {
+    add_header Cache-Control "no-cache" always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+    add_header X-Frame-Options DENY always;
+    add_header Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
+    try_files $uri /index.html;
+  }
+}
