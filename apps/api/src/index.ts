@@ -16,7 +16,7 @@ import { deleteOldLogs } from './metering/analytics';
 import { RequestRecorder } from './metering/recorder';
 import { Embedder } from './semantic/embeddings';
 import { ProviderStore } from './services/providers';
-import { createTenantResolver } from './services/tenancy';
+import { createTenantResolver, createWorkspaceLoader } from './services/tenancy';
 import { UpstreamClient } from './upstream/client';
 
 const config = loadConfig();
@@ -46,6 +46,7 @@ const cookie = sessionCookie(production);
 const app = createApp({
   logger,
   webOrigin: config.TWYNN_WEB_ORIGIN,
+  loadWorkspace: createWorkspaceLoader(db, providers),
   chat: {
     resolveTenant: createTenantResolver(db, providers, logger),
     cache,

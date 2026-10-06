@@ -10,7 +10,7 @@ import {
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { CACHE_LAYER, CACHE_STATUS } from '@twynn/shared';
+import { CACHE_LAYER, CACHE_STATUS, REQUEST_SOURCE } from '@twynn/shared';
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).defaultNow().notNull();
 
@@ -154,6 +154,7 @@ export const requestLogs = pgTable(
       .notNull()
       .references(() => workspaces.id, { onDelete: 'cascade' }),
     keyId: uuid('key_id').references(() => gatewayKeys.id, { onDelete: 'set null' }),
+    source: text('source', { enum: REQUEST_SOURCE }).notNull().default('api'),
     // Millisecond precision so keyset cursors round-trip exactly through JavaScript Dates.
     createdAt: timestamp('created_at', { withTimezone: true, precision: 3 }).defaultNow().notNull(),
     model: text('model'),

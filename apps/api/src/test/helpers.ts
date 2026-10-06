@@ -16,7 +16,7 @@ import { RequestRecorder } from '../metering/recorder';
 import * as schema from '../db/schema';
 import { Embedder } from '../semantic/embeddings';
 import { ProviderStore } from '../services/providers';
-import { createTenantResolver } from '../services/tenancy';
+import { createTenantResolver, createWorkspaceLoader } from '../services/tenancy';
 import { UpstreamClient } from '../upstream/client';
 
 export const silentLogger = pino({ level: 'silent' });
@@ -150,6 +150,7 @@ export function buildApp(options: TestAppOptions): TestApp {
     logger: silentLogger,
     webOrigin: WEB_ORIGIN,
     checks: options.checks ?? {},
+    loadWorkspace: createWorkspaceLoader(db, providers),
     chat: {
       resolveTenant: createTenantResolver(db, providers, silentLogger),
       cache,

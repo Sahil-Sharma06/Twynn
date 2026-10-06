@@ -7,8 +7,9 @@ import { csrfGuard } from './auth/middleware';
 import { GatewayError } from './lib/errors';
 import { analyticsRoutes, type AnalyticsDeps } from './routes/analytics';
 import { cacheRoutes, type CacheRoutesDeps } from './routes/cache';
-import { chatRoutes, type ChatDeps } from './routes/chat';
+import { chatRoutes, playgroundRoutes, type ChatDeps } from './routes/chat';
 import { dashboardRoutes, type DashboardDeps } from './routes/dashboard';
+import type { WorkspaceLoader } from './services/tenancy';
 import type { AppEnv } from './types';
 import { ClientAbortedError } from './upstream/client';
 
@@ -18,6 +19,8 @@ export interface AppDeps {
   logger: Logger;
   checks: Record<string, HealthCheck>;
   chat: ChatDeps;
+  /** Tenant context for session-authenticated playground calls. */
+  loadWorkspace: WorkspaceLoader;
   dashboard: DashboardDeps;
   analytics: AnalyticsDeps;
   cacheAdmin: CacheRoutesDeps;
@@ -39,6 +42,7 @@ export function createApp({
   logger,
   checks,
   chat,
+  loadWorkspace,
   dashboard,
   analytics,
   cacheAdmin,
@@ -103,6 +107,10 @@ export function createApp({
   app.route('/api', dashboardRoutes(dashboard));
   app.route('/api', analyticsRoutes(analytics));
   app.route('/api', cacheRoutes(cacheAdmin));
+  app.route(
+    '/api',
+    playgroundRoutes({ ...chat, db: dashboard.db, cookie: dashboard.cookie, loadWorkspace }),
+  );
 
   app.notFound((c) =>
     c.json(

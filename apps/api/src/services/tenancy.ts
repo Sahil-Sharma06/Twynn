@@ -7,7 +7,8 @@ import { getCacheSettings } from './settings';
 
 export interface Tenant {
   workspaceId: string;
-  keyId: string;
+  /** Null for requests made from the dashboard playground, which use the session instead. */
+  keyId: string | null;
   provider: ProviderCredentials | null;
   settings: CacheSettings;
 }
@@ -32,5 +33,18 @@ export function createTenantResolver(
       getCacheSettings(db, key.workspaceId),
     ]);
     return { workspaceId: key.workspaceId, keyId: key.id, provider, settings };
+  };
+}
+
+/** Loads a workspace's tenant context directly, for session-authenticated playground calls. */
+export type WorkspaceLoader = (workspaceId: string) => Promise<Tenant>;
+
+export function createWorkspaceLoader(db: Database, providers: ProviderStore): WorkspaceLoader {
+  return async (workspaceId) => {
+    const [provider, settings] = await Promise.all([
+      providers.credentials(workspaceId),
+      getCacheSettings(db, workspaceId),
+    ]);
+    return { workspaceId, keyId: null, provider, settings };
   };
 }

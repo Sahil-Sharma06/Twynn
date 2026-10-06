@@ -297,6 +297,7 @@ export async function listRequests(
   if (filters.status) conditions.push(eq(requestLogs.status, filters.status));
   if (filters.model) conditions.push(eq(requestLogs.model, filters.model));
   if (filters.keyId) conditions.push(eq(requestLogs.keyId, filters.keyId));
+  if (filters.source) conditions.push(eq(requestLogs.source, filters.source));
   if (filters.errorsOnly) conditions.push(gte(requestLogs.statusCode, 400));
   if (filters.q) {
     const pattern = `%${escapeLike(filters.q)}%`;

@@ -32,6 +32,7 @@ const request = (overrides: Partial<RequestLogView> = {}): RequestLogView => ({
   id: crypto.randomUUID(),
   createdAt: new Date().toISOString(),
   keyId: 'k1',
+  source: 'api',
   model: 'gpt-4o-mini',
   layer: 'upstream',
   status: 'MISS',

@@ -1,5 +1,12 @@
 import { z } from 'zod';
-import { CACHE_LAYER, CACHE_STATUS, type CacheLayer, type CacheStatus } from './cache';
+import {
+  CACHE_LAYER,
+  CACHE_STATUS,
+  REQUEST_SOURCE,
+  type CacheLayer,
+  type CacheStatus,
+  type RequestSource,
+} from './cache';
 
 export const MAX_RANGE_DAYS = 90;
 
@@ -42,6 +49,7 @@ export const requestFiltersSchema = z.object({
   status: z.enum(CACHE_STATUS).optional(),
   model: z.string().trim().min(1).max(200).optional(),
   keyId: z.string().uuid().optional(),
+  source: z.enum(REQUEST_SOURCE).optional(),
   /** Case-insensitive search in the prompt preview and model. */
   q: z.string().trim().min(1).max(200).optional(),
   errorsOnly: z
@@ -57,6 +65,7 @@ export interface RequestLogView {
   id: string;
   createdAt: string;
   keyId: string | null;
+  source: RequestSource;
   model: string | null;
   /** Null when the request never reached the cache (for example, it failed validation). */
   layer: CacheLayer | null;

@@ -4,6 +4,7 @@ import {
   type CacheLayer,
   type CacheStatus,
   type RequestLogView,
+  type RequestSource,
 } from '@twynn/shared';
 import type { Logger } from 'pino';
 import type { Database } from '../db/client';
@@ -14,8 +15,11 @@ export const PREVIEW_CHARS = PROMPT_PREVIEW_CHARS;
 
 /** Filled in by the gateway route while handling a request. */
 export interface MeterDraft {
+  /** The log row's id, generated up front so it can be returned in a response header. */
+  id?: string;
   workspaceId?: string;
   keyId?: string;
+  source?: RequestSource;
   model?: string;
   promptPreview?: string;
   promptTokens?: number;
@@ -75,6 +79,7 @@ export function toLogView(row: LogRow): RequestLogView {
     id: row.id,
     createdAt: row.createdAt.toISOString(),
     keyId: row.keyId,
+    source: row.source,
     model: row.model,
     layer: row.layer,
     status: row.status,
@@ -117,8 +122,10 @@ export class RequestRecorder {
       const [row] = await this.db
         .insert(requestLogs)
         .values({
+          ...(record.id && { id: record.id }),
           workspaceId: record.workspaceId,
           keyId: record.keyId ?? null,
+          source: record.source ?? 'api',
           model: record.model ?? null,
           layer: record.layer,
           status: record.status,
