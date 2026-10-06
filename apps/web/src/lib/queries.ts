@@ -13,6 +13,7 @@ import type {
   CacheSettings,
   CacheSettingsUpdate,
   CreatedGatewayKey,
+  EvaluationData,
   Credentials,
   GatewayKeyView,
   InvalidateInput,
@@ -53,6 +54,7 @@ export const keys = {
   recentRequests: ['requests', 'recent'] as const,
   cache: ['cache'] as const,
   settings: ['settings'] as const,
+  evaluation: ['evaluation'] as const,
 };
 
 /** Drops undefined and empty values so URLs and query keys stay canonical. */
@@ -271,5 +273,38 @@ export function useThresholdPreview(days = 7) {
   return useQuery({
     queryKey: [...keys.analytics, 'threshold-preview', days],
     queryFn: () => api<ThresholdPreview>(`/analytics/threshold-preview?days=${days}`),
+  });
+}
+
+export function useEvaluation() {
+  return useQuery({
+    queryKey: keys.evaluation,
+    queryFn: () => api<EvaluationData>('/evaluation'),
+  });
+}
+
+/** Sets (true/false) or clears (null) a pair's label, updating the list immediately. */
+export function useLabelPair() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ requestId, same }: { requestId: string; same: boolean | null }) =>
+      same === null
+        ? api<undefined>(`/evaluation/labels/${requestId}`, { method: 'DELETE' })
+        : api<undefined>(`/evaluation/labels/${requestId}`, { method: 'PUT', body: { same } }),
+    onMutate: async ({ requestId, same }) => {
+      await client.cancelQueries({ queryKey: keys.evaluation });
+      const previous = client.getQueryData<EvaluationData>(keys.evaluation);
+      client.setQueryData<EvaluationData>(
+        keys.evaluation,
+        (data) =>
+          data && {
+            pairs: data.pairs.map((p) => (p.requestId === requestId ? { ...p, label: same } : p)),
+          },
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) client.setQueryData(keys.evaluation, context.previous);
+    },
   });
 }

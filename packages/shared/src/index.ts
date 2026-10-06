@@ -14,3 +14,4 @@ export * from './api';
 export * from './cache';
 export * from './entries';
 export * from './pricing';
+export * from './evaluation';

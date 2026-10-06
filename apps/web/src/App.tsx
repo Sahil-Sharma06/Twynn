@@ -25,6 +25,7 @@ const Settings = lazy(() => import('./pages/app/Settings').then((m) => ({ defaul
 const Playground = lazy(() =>
   import('./pages/app/Playground').then((m) => ({ default: m.Playground })),
 );
+const Evaluate = lazy(() => import('./pages/app/Evaluate').then((m) => ({ default: m.Evaluate })));
 const NotFound = lazy(() => import('./pages/NotFound').then((m) => ({ default: m.NotFound })));
 
 const page = (node: ReactNode) => (
@@ -64,6 +65,7 @@ export const routes: RouteObject[] = [
       { path: '/app/cache', element: page(<Cache />) },
       { path: '/app/keys', element: page(<Keys />) },
       { path: '/app/settings', element: page(<Settings />) },
+      { path: '/app/evaluate', element: page(<Evaluate />) },
     ],
   },
 ];

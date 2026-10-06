@@ -178,3 +178,22 @@ export const requestLogs = pgTable(
   },
   (t) => [index().on(t.workspaceId, t.createdAt.desc(), t.id.desc()), index().on(t.createdAt)],
 );
+
+/**
+ * Reviewer verdicts on twin-search pairs, used to recommend a twin threshold. Tied to the
+ * logged request, so labels follow the request log's retention.
+ */
+export const twinLabels = pgTable(
+  'twin_labels',
+  {
+    requestId: uuid('request_id')
+      .primaryKey()
+      .references(() => requestLogs.id, { onDelete: 'cascade' }),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    same: boolean('same').notNull(),
+    labelledAt: timestamp('labelled_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index().on(t.workspaceId)],
+);

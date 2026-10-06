@@ -9,6 +9,7 @@ import { analyticsRoutes, type AnalyticsDeps } from './routes/analytics';
 import { cacheRoutes, type CacheRoutesDeps } from './routes/cache';
 import { chatRoutes, playgroundRoutes, type ChatDeps } from './routes/chat';
 import { dashboardRoutes, type DashboardDeps } from './routes/dashboard';
+import { evaluationRoutes } from './routes/evaluation';
 import type { WorkspaceLoader } from './services/tenancy';
 import type { AppEnv } from './types';
 import { ClientAbortedError } from './upstream/client';
@@ -107,6 +108,7 @@ export function createApp({
   app.route('/api', dashboardRoutes(dashboard));
   app.route('/api', analyticsRoutes(analytics));
   app.route('/api', cacheRoutes(cacheAdmin));
+  app.route('/api', evaluationRoutes({ db: dashboard.db, cookie: dashboard.cookie }));
   app.route(
     '/api',
     playgroundRoutes({ ...chat, db: dashboard.db, cookie: dashboard.cookie, loadWorkspace }),

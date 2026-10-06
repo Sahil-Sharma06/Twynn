@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from 'react';
+import { Link } from 'react-router';
 import {
   CACHE_SETTINGS_LIMITS,
   cacheSettingsSchema,
@@ -126,6 +127,11 @@ function CacheSettingsForm({ saved }: { saved: CacheSettings }) {
             </p>
             <ThresholdImpact current={saved.twinThreshold} proposed={draft.twinThreshold} />
           </div>
+          <p className={styles.evaluateLink}>
+            Not sure where to set it?{' '}
+            <Link to="/app/evaluate">Review real pairs for false hits</Link> and get a
+            recommendation.
+          </p>
         </fieldset>
 
         <Field
