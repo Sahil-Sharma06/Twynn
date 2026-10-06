@@ -12,6 +12,7 @@ const navLink = styles.navLink ?? '';
 const NAV: Array<{ to: string; label: string; end?: boolean }> = [
   { to: '/app', label: 'Overview', end: true },
   { to: '/app/requests', label: 'Requests' },
+  { to: '/app/playground', label: 'Playground' },
   { to: '/app/cache', label: 'Cache' },
   { to: '/app/keys', label: 'Keys' },
   { to: '/app/settings', label: 'Settings' },

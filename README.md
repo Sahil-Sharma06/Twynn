@@ -22,9 +22,13 @@ Sign up, connect an OpenAI-compatible provider (base URL and key), and create a 
 const client = new OpenAI({ baseURL: 'http://localhost:3000/v1', apiKey: 'twynn_sk_…' });
 ```
 
-Each response carries `X-Twynn-Cache` (`HIT`, `MISS`, `BYPASS`) and `X-Twynn-Cache-Layer` (`exact`, `twin`, `upstream`). Twin hits also carry `X-Twynn-Match-Score`, the cosine similarity to the stored prompt. Twin threshold, TTL, embeddings model and the twin-layer switch are per-workspace settings (`/api/settings`).
+Each response carries `X-Twynn-Cache` (`HIT`, `MISS`, `BYPASS`) and `X-Twynn-Cache-Layer` (`exact`, `twin`, `upstream`). Twin hits also carry `X-Twynn-Match-Score`, the cosine similarity to the stored prompt. Every logged request carries `X-Twynn-Request-Id`, its id in the request log, so you can find it in the dashboard. Twin threshold, TTL, embeddings model and the twin-layer switch are per-workspace settings (`/api/settings`).
 
 Streaming requests are cached too: misses stream straight through and are stored once complete, and hits are replayed as a stream. Send `X-Twynn-Cache-Control: no-cache` to skip the cache for one request (the fresh answer replaces the stored one). Cached entries can be browsed and deleted via `/api/cache`, or invalidated in bulk by model or age via `POST /api/cache/invalidate`.
+
+## Playground
+
+The dashboard playground sends prompts through your own gateway, two side by side, so you can watch a repeat become an exact hit or a rewording become a twin hit. It calls `POST /api/playground/chat/completions`, which runs the same pipeline as `/v1` (your provider, your cache, metering) but authenticates with the dashboard session, so no gateway key is handled in the browser. Playground requests are logged with source `playground` and can be filtered out of the request log.
 
 ## Analytics
 

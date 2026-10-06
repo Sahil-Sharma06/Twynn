@@ -84,6 +84,16 @@ export function Requests() {
             </option>
           ))}
         </Select>
+        <Select
+          label="Source"
+          hideLabel
+          value={filters.source}
+          onChange={(e) => update({ source: e.target.value })}
+        >
+          <option value="">All sources</option>
+          <option value="api">Apps (gateway keys)</option>
+          <option value="playground">Playground</option>
+        </Select>
         {(gatewayKeys.data?.length ?? 0) > 1 && (
           <Select
             label="Key"
@@ -185,8 +195,13 @@ export function Requests() {
                         >
                           {r.promptPreview ?? '(no text)'}
                         </Link>
-                        {r.keyId && keyName.has(r.keyId) && (
-                          <span className={styles.key}>{keyName.get(r.keyId)}</span>
+                        {r.source === 'playground' ? (
+                          <span className={styles.key}>Playground</span>
+                        ) : (
+                          r.keyId &&
+                          keyName.has(r.keyId) && (
+                            <span className={styles.key}>{keyName.get(r.keyId)}</span>
+                          )
                         )}
                       </td>
                       <td className={styles.model}>{r.model ?? '–'}</td>

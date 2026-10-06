@@ -16,6 +16,7 @@ export interface ExplorerFilters {
   q: string;
   model: string;
   keyId: string;
+  source: string;
   from: string;
   to: string;
 }
@@ -31,6 +32,10 @@ export function readFilters(params: URLSearchParams): ExplorerFilters {
     q: params.get('q') ?? '',
     model: params.get('model') ?? '',
     keyId: params.get('keyId') ?? '',
+    source:
+      params.get('source') === 'api' || params.get('source') === 'playground'
+        ? (params.get('source') ?? '')
+        : '',
     from: params.get('from') ?? '',
     to: params.get('to') ?? '',
   };
@@ -52,6 +57,7 @@ export function toRequestQuery(filters: ExplorerFilters, limit: number): Request
     q: filters.q.trim() || undefined,
     model: filters.model || undefined,
     keyId: filters.keyId || undefined,
+    source: filters.source || undefined,
     from: filters.from || undefined,
     to: filters.to || undefined,
     limit,

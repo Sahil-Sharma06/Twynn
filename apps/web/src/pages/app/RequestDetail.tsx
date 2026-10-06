@@ -142,7 +142,14 @@ export function RequestDetail() {
               'Embedding tokens',
               r.embeddingTokens === null ? '–' : formatInteger(r.embeddingTokens),
             ],
-            ['Gateway key', key ? `${key.name}${key.revokedAt ? ' (revoked)' : ''}` : '–'],
+            [
+              'Sent from',
+              r.source === 'playground'
+                ? 'Playground'
+                : key
+                  ? `Key "${key.name}"${key.revokedAt ? ' (revoked)' : ''}`
+                  : '–',
+            ],
             ['Request ID', <code key="id">{r.id}</code>],
           ]}
         />
