@@ -1,5 +1,5 @@
 import { LogOut } from 'lucide-react';
-import { Link, NavLink, Outlet, useNavigate } from 'react-router';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import { PRODUCT_NAME } from '@twynn/shared';
 import { Button } from '../components/Button';
 import { Logo } from '../components/Logo';
@@ -23,6 +23,7 @@ export function AppLayout() {
   const { data: session } = useSession();
   const logout = useLogout();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
 
   return (
     <div className={styles.page}>
@@ -59,7 +60,10 @@ export function AppLayout() {
         </div>
       </header>
       <main id="main" className={styles.main}>
-        <Outlet />
+        {/* Keyed by route so each page fades and rises in; instant under reduced motion. */}
+        <div key={pathname} className={styles.transition}>
+          <Outlet />
+        </div>
       </main>
     </div>
   );

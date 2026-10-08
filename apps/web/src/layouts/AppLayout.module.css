@@ -33,7 +33,8 @@
 }
 
 .navLink {
-  padding: var(--space-1) var(--space-3);
+  position: relative;
+  padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
   color: var(--color-text-muted);
   font-size: var(--text-sm);
@@ -47,8 +48,29 @@
 }
 
 .navLink[aria-current='page'] {
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
+  color: var(--color-text);
+}
+
+/* The active page is marked by a hairline under its name, in the text colour. */
+.navLink[aria-current='page']::after {
+  content: '';
+  position: absolute;
+  left: var(--space-3);
+  right: var(--space-3);
+  bottom: 2px;
+  height: 2px;
+  background: var(--color-text);
+}
+
+.transition {
+  animation: page-in var(--duration-slow) var(--ease-out) both;
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
 }
 
 .workspace {

@@ -7,7 +7,10 @@ export type ChartMode = 'layers' | 'latency';
 
 const HEIGHT = 100;
 const SLOT = 10;
-const GAP = 2;
+const GAP = 3;
+/** Extrusion depth of each bar, in view-box units: a side face to the right and a top cap. */
+const DX = 1.6;
+const DY = 2.4;
 
 /** Stacked segments per bucket, bottom to top. Requests without a layer (bypass, errors) are "other". */
 export function layerSegments(p: TimeseriesPoint) {
@@ -50,6 +53,7 @@ export function TimeChart({
   onHover,
   onPin,
   label,
+  pulse = 0,
 }: {
   points: TimeseriesPoint[];
   bucket: 'hour' | 'day';
@@ -58,12 +62,16 @@ export function TimeChart({
   onHover: (index: number | null) => void;
   onPin: (index: number | null) => void;
   label: string;
+  /** Changes each time live traffic arrives, so the newest bar pulses. */
+  pulse?: number;
 }) {
   const n = points.length;
   const width = Math.max(1, n) * SLOT;
   const values = points.map((p) => (mode === 'layers' ? p.requests : (p.avgLatencyMs ?? 0)));
   const ceiling = niceCeiling(Math.max(0, ...values));
-  const y = (value: number) => HEIGHT - (value / ceiling) * HEIGHT;
+  // Leave room above the tallest bar for its extruded cap.
+  const PLOT = HEIGHT - DY;
+  const y = (value: number) => HEIGHT - (value / ceiling) * PLOT;
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (n === 0) return;
@@ -125,40 +133,57 @@ export function TimeChart({
           aria-hidden="true"
         >
           <line x1={0} x2={width} y1={HEIGHT / 2} y2={HEIGHT / 2} className={styles.grid} />
-          {points.map((p, i) => {
-            const x = i * SLOT + GAP / 2;
-            let base = HEIGHT;
-            return (
-              <g key={p.t} data-active={active === i || undefined}>
-                <rect
-                  x={i * SLOT}
-                  y={0}
-                  width={SLOT}
-                  height={HEIGHT}
-                  className={styles.slot}
-                  onMouseEnter={() => onHover(i)}
-                  onClick={() => onPin(i)}
-                />
-                {mode === 'layers' &&
-                  layerSegments(p).map(({ key, value }) => {
-                    if (value === 0) return null;
-                    const h = (value / ceiling) * HEIGHT;
-                    base -= h;
-                    return (
-                      <rect
-                        key={key}
-                        x={x}
-                        y={base}
-                        width={SLOT - GAP}
-                        height={h}
-                        className={`${styles.bar} ${styles[key]}`}
-                        style={{ y: base, height: h }}
+          <g className={styles.bars} key={`${points[0]?.t}-${n}`}>
+            {points.map((p, i) => {
+              const x = i * SLOT + GAP / 2;
+              const w = SLOT - GAP;
+              let base = HEIGHT;
+              const latest = i === n - 1;
+              const stack =
+                mode === 'layers'
+                  ? layerSegments(p).flatMap(({ key, value }) => {
+                      if (value === 0) return [];
+                      const h = (value / ceiling) * PLOT;
+                      base -= h;
+                      return [{ key, top: base, h }];
+                    })
+                  : [];
+              const cap = stack.at(-1);
+              return (
+                <g
+                  key={latest ? `${p.t}-${pulse}` : p.t}
+                  data-active={active === i || undefined}
+                  data-latest={latest && pulse > 0 ? true : undefined}
+                >
+                  <rect
+                    x={i * SLOT}
+                    y={0}
+                    width={SLOT}
+                    height={HEIGHT}
+                    className={styles.slot}
+                    onMouseEnter={() => onHover(i)}
+                    onClick={() => onPin(i)}
+                  />
+                  {stack.map(({ key, top, h }) => (
+                    <g key={key} className={`${styles.bar} ${styles[key]}`}>
+                      <rect x={x} y={top} width={w} height={h} />
+                      {/* Side face: the same hue, shaded. */}
+                      <polygon
+                        className={styles.side}
+                        points={`${x + w},${top} ${x + w + DX},${top - DY} ${x + w + DX},${top + h - DY} ${x + w},${top + h}`}
                       />
-                    );
-                  })}
-              </g>
-            );
-          })}
+                    </g>
+                  ))}
+                  {cap && (
+                    <polygon
+                      className={`${styles.bar} ${styles[cap.key]} ${styles.cap}`}
+                      points={`${x},${cap.top} ${x + DX},${cap.top - DY} ${x + w + DX},${cap.top - DY} ${x + w},${cap.top}`}
+                    />
+                  )}
+                </g>
+              );
+            })}
+          </g>
           {segments.map((pts) => (
             <polyline key={pts} points={pts} className={styles.line} />
           ))}

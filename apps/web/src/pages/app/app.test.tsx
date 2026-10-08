@@ -240,6 +240,7 @@ describe('Overview', () => {
     );
     expect(await screen.findByText('Brand new question')).toBeInTheDocument();
     expect(screen.getByText('match 0.970')).toBeInTheDocument();
+    expect(screen.getByText('No requests in this period.')).toBeInTheDocument();
   });
 
   it('has a designed empty state before any traffic', async () => {

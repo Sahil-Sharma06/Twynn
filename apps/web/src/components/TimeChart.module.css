@@ -53,32 +53,71 @@ g[data-active] .slot {
   fill: var(--color-surface-sunken);
 }
 
-.bar {
-  transition:
-    y var(--duration-slow) var(--ease-out),
-    height var(--duration-slow) var(--ease-out),
-    opacity var(--duration-fast) var(--ease-out);
+/* Bars grow from the baseline when the chart (or its range) appears. */
+.bars {
+  transform-origin: 0 100px;
+  animation: grow var(--duration-story) var(--ease-out) both;
 }
 
-.exact {
+.bar {
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.side {
+  filter: brightness(0.72);
+}
+
+.cap {
+  filter: brightness(1.18);
+}
+
+/* The newest bar pulses when live traffic arrives. */
+g[data-latest] .bar {
+  animation: pulse var(--duration-story) var(--ease-out);
+}
+
+@keyframes grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes pulse {
+  30% {
+    filter: brightness(1.35);
+  }
+}
+
+.exact,
+.exact polygon,
+.exact rect {
   fill: var(--color-exact);
 }
 
-.twin {
+.twin,
+.twin polygon,
+.twin rect {
   fill: var(--color-twin);
 }
 
-.miss {
+.miss,
+.miss polygon,
+.miss rect {
   fill: var(--color-upstream);
+}
+
+.miss {
   opacity: 0.55;
 }
 
-.other {
+.other,
+.other polygon,
+.other rect {
   fill: var(--color-border-strong);
 }
 
 /* When one bucket is active, the rest recede so it stands out. */
-.svg:has(g[data-active]) g:not([data-active]) .bar {
+.svg:has(g[data-active]) .bars > g:not([data-active]) .bar {
   opacity: 0.45;
 }
 

@@ -150,7 +150,7 @@ function BucketDetail({ point, bucket }: { point: TimeseriesPoint; bucket: 'hour
   );
 }
 
-function TrafficPanel({ range }: { range: RangeKey }) {
+function TrafficPanel({ range, pulse }: { range: RangeKey; pulse: number }) {
   const series = useTimeseries(range);
   const [mode, setMode] = useState<ChartMode>('layers');
   const [hovered, setHovered] = useState<number | null>(null);
@@ -190,6 +190,7 @@ function TrafficPanel({ range }: { range: RangeKey }) {
             active={active}
             onHover={setHovered}
             onPin={(i) => setPinned((current) => (current === i ? null : i))}
+            pulse={pulse}
             label={mode === 'layers' ? 'Requests by layer over time' : 'Average latency over time'}
           />
           {mode === 'layers' && (
@@ -299,35 +300,44 @@ function CostPanel({ s }: { s: AnalyticsSummary }) {
 
 function ModelsPanel({ range }: { range: RangeKey }) {
   const models = useModels(range);
-  if (!models.data?.length) return null;
   return (
     <Panel title="By model">
-      <div className={styles.scroll}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th scope="col">Model</th>
-              <th scope="col">Requests</th>
-              <th scope="col">Hit rate</th>
-              <th scope="col">Tokens from cache</th>
-              <th scope="col">Est. saved</th>
-            </tr>
-          </thead>
-          <tbody>
-            {models.data.map((m) => (
-              <tr key={m.model}>
-                <th scope="row">
-                  <Link to={`/app/requests?${toQuery({ model: m.model })}`}>{m.model}</Link>
-                </th>
-                <td>{formatInteger(m.requests)}</td>
-                <td>{m.hitRate === null ? '–' : formatPercent(m.hitRate)}</td>
-                <td>{formatInteger(m.tokensSaved)}</td>
-                <td>{m.costSavedUsd === null ? 'No price' : formatUsd(m.costSavedUsd)}</td>
+      {models.isError ? (
+        <Callout tone="error">
+          The model breakdown could not be loaded. Refresh to try again.
+        </Callout>
+      ) : !models.data ? (
+        <Skeleton height="6rem" />
+      ) : models.data.length === 0 ? (
+        <p className={styles.muted}>No requests in this period.</p>
+      ) : (
+        <div className={styles.scroll}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th scope="col">Model</th>
+                <th scope="col">Requests</th>
+                <th scope="col">Hit rate</th>
+                <th scope="col">Tokens from cache</th>
+                <th scope="col">Est. saved</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {models.data.map((m) => (
+                <tr key={m.model}>
+                  <th scope="row">
+                    <Link to={`/app/requests?${toQuery({ model: m.model })}`}>{m.model}</Link>
+                  </th>
+                  <td>{formatInteger(m.requests)}</td>
+                  <td>{m.hitRate === null ? '–' : formatPercent(m.hitRate)}</td>
+                  <td>{formatInteger(m.tokensSaved)}</td>
+                  <td>{m.costSavedUsd === null ? 'No price' : formatUsd(m.costSavedUsd)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </Panel>
   );
 }
@@ -342,6 +352,7 @@ export function Overview() {
   const summary = useSummary(range);
   const recent = useRecentRequests(FEED_SIZE);
   const [fresh, setFresh] = useState<ReadonlySet<string>>(new Set());
+  const [pulse, setPulse] = useState(0);
 
   // Each live request lands in the feed at once; aggregates refresh at most every 2 seconds.
   const refresh = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -353,6 +364,7 @@ export function Overview() {
         : page,
     );
     setFresh((ids) => new Set(ids).add(request.id));
+    setPulse((n) => n + 1);
     refresh.current ??= setTimeout(() => {
       refresh.current = null;
       void client.invalidateQueries({ queryKey: keys.analytics });
@@ -416,7 +428,7 @@ export function Overview() {
         </Panel>
       ) : (
         <>
-          <TrafficPanel range={range} />
+          <TrafficPanel range={range} pulse={pulse} />
           <div className={styles.columns}>
             <Panel
               title="Live feed"
@@ -426,7 +438,11 @@ export function Overview() {
                 </Link>
               }
             >
-              {recent.data ? (
+              {recent.isError ? (
+                <Callout tone="error">
+                  The live feed could not be loaded. Refresh to try again.
+                </Callout>
+              ) : recent.data ? (
                 <div aria-live="polite" aria-relevant="additions">
                   <RequestList requests={recent.data.requests} fresh={fresh} />
                 </div>
@@ -435,7 +451,7 @@ export function Overview() {
               )}
             </Panel>
             <div className={styles.stack}>
-              {s ? <LayerBreakdown s={s} /> : <Skeleton height="14rem" />}
+              {s ? <LayerBreakdown s={s} /> : !summary.isError && <Skeleton height="14rem" />}
               {s && <CostPanel s={s} />}
             </div>
           </div>
