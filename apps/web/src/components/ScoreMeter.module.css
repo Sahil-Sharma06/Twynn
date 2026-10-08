@@ -17,6 +17,7 @@
   border-radius: inherit;
   background: var(--color-upstream);
   transition: width var(--duration-slow) var(--ease-out);
+  animation: fill-in var(--duration-story) var(--ease-out) backwards;
 }
 
 .meter[data-served] .fill {
@@ -32,6 +33,21 @@
   border-radius: 1px;
   background: var(--color-text);
   transition: left var(--duration-base) var(--ease-out);
+  animation: glide-in var(--duration-slow) var(--ease-spring) backwards;
+}
+
+/* On first render the fill grows to the score and the threshold marker glides into place. */
+@keyframes fill-in {
+  from {
+    width: 0;
+  }
+}
+
+@keyframes glide-in {
+  from {
+    left: 0;
+    opacity: 0;
+  }
 }
 
 .caption {

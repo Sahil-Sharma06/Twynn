@@ -4,7 +4,8 @@ import { Button } from '../../components/Button';
 import { Callout } from '../../components/Callout';
 import { LayerBadge } from '../../components/LayerBadge';
 import { Skeleton } from '../../components/Spinner';
-import { EmptyState, PageHeader, Panel, SearchInput, Segmented, Select } from '../../components/Ui';
+import { Chip } from '../../components/Chip';
+import { EmptyState, PageHeader, Panel, SearchInput, Select } from '../../components/Ui';
 import {
   hasActiveFilters,
   readFilters,
@@ -62,12 +63,17 @@ export function Requests() {
           value={filters.q}
           onChange={(value) => update({ q: value })}
         />
-        <Segmented
-          label="Result"
-          value={filters.result}
-          onChange={(result) => update({ result })}
-          options={RESULT_OPTIONS}
-        />
+        <div className={styles.chips} role="group" aria-label="Result">
+          {RESULT_OPTIONS.map((option) => (
+            <Chip
+              key={option.value}
+              pressed={filters.result === option.value}
+              onClick={() => update({ result: option.value })}
+            >
+              {option.label}
+            </Chip>
+          ))}
+        </div>
         <Select
           label="Model"
           hideLabel

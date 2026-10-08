@@ -38,8 +38,8 @@
 .pair blockquote {
   margin: 0;
   padding: var(--space-3) var(--space-4);
-  border-left: 3px solid var(--color-border-strong);
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
   background: var(--color-surface-sunken);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -66,8 +66,8 @@
   color: var(--color-text-muted);
 }
 
-.pair figure:last-child blockquote {
-  border-left-color: var(--color-twin);
+.pair[data-twin] figure:last-child blockquote {
+  border-color: var(--color-twin);
 }
 
 .muted {

@@ -40,7 +40,7 @@ function TwinComparison({ r, threshold }: { r: RequestDetailView; threshold: num
           : `The twin search found this as the nearest stored prompt, but it was not close enough to reuse.`
       }
     >
-      <div className={styles.pair}>
+      <div className={styles.pair} data-twin={twinHit || undefined}>
         <figure>
           <figcaption>This request</figcaption>
           <blockquote>{r.promptPreview ?? '(no text)'}</blockquote>
