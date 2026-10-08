@@ -1,0 +1,106 @@
+.visual {
+  position: relative;
+  margin: 0;
+  min-height: 26rem;
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+}
+
+/* Labels and the answer card are DOM, so they use the product fonts. */
+.sceneLabel {
+  width: 15rem;
+  padding: 0 var(--space-4);
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--color-twin);
+  text-align: center;
+  pointer-events: none;
+  user-select: none;
+}
+
+.sceneLabelSolid {
+  color: var(--color-on-accent);
+}
+
+.sceneCard,
+.answer {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 15rem;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-md);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.answerLabel {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/* Static frame */
+.still {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: var(--space-6);
+}
+
+.pair {
+  position: relative;
+  width: min(100%, 26rem);
+  height: 9rem;
+}
+
+.bubble {
+  position: absolute;
+  width: 15rem;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.bubbleA {
+  left: 0;
+  top: 0;
+  background: var(--color-exact);
+  color: var(--color-on-accent);
+  border-bottom-left-radius: 4px;
+}
+
+.bubbleB {
+  right: 0;
+  bottom: 0;
+  border: 2px solid var(--color-twin);
+  color: var(--color-twin);
+  background: color-mix(in srgb, var(--color-twin) 8%, var(--color-bg));
+  border-bottom-right-radius: 4px;
+}
+
+.overlapGlow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6rem;
+  height: 3rem;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--color-twin);
+  opacity: 0.35;
+  filter: blur(18px);
+  pointer-events: none;
+}

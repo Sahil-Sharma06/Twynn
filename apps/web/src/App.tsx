@@ -5,6 +5,7 @@ import { Spinner } from './components/Spinner';
 import { AppLayout } from './layouts/AppLayout';
 import { PublicLayout } from './layouts/PublicLayout';
 import { RequireAuth } from './layouts/RequireAuth';
+import { ToastProvider } from './components/Toast';
 import { queryClient } from './lib/queries';
 
 // Route-level code splitting: each page is its own chunk.
@@ -49,6 +50,17 @@ export const routes: RouteObject[] = [
     ],
   },
   { path: '/login', element: page(<Login />) },
+  // Development-only component catalogue; the branch is removed from production builds.
+  ...(import.meta.env.DEV
+    ? [
+        {
+          path: '/dev/components',
+          Component: lazy(() =>
+            import('./pages/dev/DevComponents').then((m) => ({ default: m.DevComponents })),
+          ),
+        },
+      ]
+    : []),
   { path: '/signup', element: page(<Signup />) },
   {
     element: (
@@ -75,7 +87,9 @@ const router = createBrowserRouter(routes);
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <ToastProvider>
+        <RouterProvider router={router} />
+      </ToastProvider>
     </QueryClientProvider>
   );
 }

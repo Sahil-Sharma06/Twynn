@@ -43,7 +43,7 @@ export function PublicLayout() {
       </main>
       <footer className={styles.footer}>
         <Logo size={20} />
-        <p>An OpenAI-compatible gateway that answers repeated questions from cache.</p>
+        <p>An OpenAI-compatible gateway that answers repeated questions from a cache.</p>
       </footer>
     </div>
   );

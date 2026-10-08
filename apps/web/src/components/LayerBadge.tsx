@@ -1,5 +1,5 @@
 import { VOCABULARY, type CacheLayer, type CacheStatus } from '@twynn/shared';
-import styles from './LayerBadge.module.css';
+import { Badge } from './Badge';
 
 /** Labels a request by the layer that answered it, using the shared vocabulary. */
 export function LayerBadge({
@@ -11,20 +11,19 @@ export function LayerBadge({
 }) {
   if (status === 'HIT' && layer === 'exact') {
     return (
-      <span className={`${styles.badge} ${styles.exact}`} title={VOCABULARY.exactHit.technical}>
+      <Badge tone="exact" title={VOCABULARY.exactHit.technical}>
         {VOCABULARY.exactHit.label}
-      </span>
+      </Badge>
     );
   }
   if (status === 'HIT' && layer === 'twin') {
     return (
-      <span className={`${styles.badge} ${styles.twin}`} title={VOCABULARY.twinHit.technical}>
+      <Badge tone="twin" title={VOCABULARY.twinHit.technical}>
         {VOCABULARY.twinHit.label}
-      </span>
+      </Badge>
     );
   }
-  if (status === 'BYPASS')
-    return <span className={`${styles.badge} ${styles.upstream}`}>Bypass</span>;
-  if (status === 'MISS') return <span className={`${styles.badge} ${styles.upstream}`}>Miss</span>;
-  return <span className={`${styles.badge} ${styles.error}`}>Not served</span>;
+  if (status === 'BYPASS') return <Badge tone="bypass">Bypass</Badge>;
+  if (status === 'MISS') return <Badge tone="miss">Miss</Badge>;
+  return <Badge tone="danger">Not served</Badge>;
 }

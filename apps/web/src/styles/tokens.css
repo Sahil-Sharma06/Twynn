@@ -14,9 +14,9 @@
   --color-surface: light-dark(#ffffff, #191823);
   --color-surface-sunken: light-dark(#f2f0eb, #0c0b13);
   --color-surface-raised: light-dark(#ffffff, #221f2e);
-  --color-border: light-dark(#e3dfd6, #2e2b3c);
+  --color-border: light-dark(#e7e3d9, #2a2837);
   --color-border-strong: light-dark(#c9c3b6, #46425a);
-  --color-text: light-dark(#1b1924, #eeecf5);
+  --color-text: light-dark(#1b1a24, #eceaf6);
   --color-text-muted: light-dark(#5b5768, #a9a5b8);
   --color-text-faint: light-dark(#6f6a7c, #8d899e);
 
@@ -29,7 +29,7 @@
   --color-exact-soft: var(--color-accent-soft);
   --color-twin: light-dark(#0b7a5e, #4fd8ac);
   --color-twin-soft: light-dark(#e0f4ee, #12302a);
-  --color-upstream: light-dark(#6f6a7c, #8d899e);
+  --color-upstream: light-dark(#6f6a7c, #8c879c);
   --color-upstream-soft: light-dark(#eeece7, #24222f);
   --color-danger: light-dark(#b42d26, #ff8a80);
   --color-danger-soft: light-dark(#fbe9e7, #3a1c1b);
@@ -79,6 +79,7 @@
   --duration-base: 200ms;
   --duration-slow: 420ms;
   --duration-story: 900ms;
+  --ease-spring: cubic-bezier(0.34, 1.3, 0.64, 1);
 }
 
 :root[data-theme='light'] {

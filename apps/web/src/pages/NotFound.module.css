@@ -1,17 +1,93 @@
 .page {
   display: grid;
-  justify-items: center;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-7);
+  min-height: 60dvh;
+  padding: var(--space-8) 0;
+}
+
+.scene {
+  position: relative;
+  height: 14rem;
+}
+
+.bubble {
+  position: absolute;
+  top: 50%;
+  width: 9rem;
+  height: 4.5rem;
+  border-radius: var(--radius-lg);
+}
+
+.a {
+  left: 0;
+  margin-top: -4.5rem;
+  background: var(--color-exact);
+  border-bottom-left-radius: 4px;
+  animation: passA 2.4s var(--ease-in-out) 0.2s both;
+}
+
+.b {
+  right: 0;
+  border: 2px solid var(--color-twin);
+  border-bottom-right-radius: 4px;
+  animation: passB 2.4s var(--ease-in-out) 0.2s both;
+}
+
+/* They approach, slide past each other on different rows, and settle apart. */
+@keyframes passA {
+  0% {
+    transform: translateX(0);
+  }
+  60% {
+    transform: translateX(calc(100% + 2rem));
+  }
+  100% {
+    transform: translateX(calc(100% + 1rem)) rotate(-4deg);
+  }
+}
+
+@keyframes passB {
+  0% {
+    transform: translateX(0);
+  }
+  60% {
+    transform: translateX(calc(-100% - 2rem));
+  }
+  100% {
+    transform: translateX(calc(-100% - 1rem)) rotate(4deg);
+  }
+}
+
+.copy {
+  display: grid;
+  justify-items: start;
   gap: var(--space-4);
-  max-width: 32rem;
-  margin: 0 auto;
-  padding: var(--space-9) var(--space-4);
-  text-align: center;
 }
 
-.page h1 {
-  font-size: var(--text-3xl);
+.copy h1 {
+  font-size: clamp(2.25rem, 3vw + 1rem, 3.5rem);
+  letter-spacing: -0.03em;
 }
 
-.page p {
+.copy p:not(.code) {
+  max-width: 28rem;
   color: var(--color-text-muted);
+}
+
+.code {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 48rem) {
+  .page {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+  }
+  .scene {
+    height: 10rem;
+  }
 }
