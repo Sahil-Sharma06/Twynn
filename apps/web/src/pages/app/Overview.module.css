@@ -20,7 +20,7 @@
 }
 
 .live[data-status='live'] .liveDot {
-  background: var(--color-twin);
+  background: var(--color-accent);
   animation: breathe 2.4s var(--ease-out) infinite;
 }
 
@@ -250,7 +250,7 @@
 
 @keyframes breathe {
   0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-twin) 50%, transparent);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-accent) 45%, transparent);
   }
   70%,
   100% {

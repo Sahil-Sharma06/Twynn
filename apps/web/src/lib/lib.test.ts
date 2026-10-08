@@ -67,7 +67,9 @@ describe('apiErrors', () => {
       email: 'Taken',
     });
     expect(apiErrors(new ApiError(500, 'Boom'))).toEqual({ form: 'Boom' });
-    expect(apiErrors(new Error('x'))).toEqual({ form: 'Something went wrong. Please try again.' });
+    expect(apiErrors(new Error('x'))).toEqual({
+      form: 'Your changes were not saved. Check your connection and try again.',
+    });
   });
 });
 

@@ -41,7 +41,8 @@ export async function api<T>(
   if (!res.ok) {
     throw new ApiError(
       res.status,
-      data?.error?.message ?? `Something went wrong (HTTP ${res.status}).`,
+      data?.error?.message ??
+        `Twynn could not complete the request (HTTP ${res.status}). Try again in a moment.`,
       data?.error?.code ?? null,
       data?.error?.param ?? null,
     );

@@ -37,5 +37,5 @@ export function validate<T extends z.ZodTypeAny>(
 /** Maps an API error onto the field it names, or onto the form as a whole. */
 export function apiErrors(error: unknown): FieldErrors {
   if (error instanceof ApiError) return { [error.param ?? 'form']: error.message };
-  return { form: 'Something went wrong. Please try again.' };
+  return { form: 'Your changes were not saved. Check your connection and try again.' };
 }
