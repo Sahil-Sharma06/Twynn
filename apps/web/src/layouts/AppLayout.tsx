@@ -16,6 +16,7 @@ const NAV: Array<{ to: string; label: string; end?: boolean }> = [
   { to: '/app/cache', label: 'Cache' },
   { to: '/app/keys', label: 'Keys' },
   { to: '/app/settings', label: 'Settings' },
+  { to: '/app/docs', label: 'Docs' },
   { to: '/onboarding', label: 'Setup' },
 ];
 

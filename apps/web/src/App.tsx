@@ -27,6 +27,7 @@ const Playground = lazy(() =>
   import('./pages/app/Playground').then((m) => ({ default: m.Playground })),
 );
 const Evaluate = lazy(() => import('./pages/app/Evaluate').then((m) => ({ default: m.Evaluate })));
+const Docs = lazy(() => import('./pages/app/Docs').then((m) => ({ default: m.Docs })));
 const NotFound = lazy(() => import('./pages/NotFound').then((m) => ({ default: m.NotFound })));
 
 const page = (node: ReactNode) => (
@@ -78,6 +79,7 @@ export const routes: RouteObject[] = [
       { path: '/app/keys', element: page(<Keys />) },
       { path: '/app/settings', element: page(<Settings />) },
       { path: '/app/evaluate', element: page(<Evaluate />) },
+      { path: '/app/docs', element: page(<Docs />) },
     ],
   },
 ];

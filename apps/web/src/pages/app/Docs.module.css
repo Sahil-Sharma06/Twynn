@@ -1,0 +1,151 @@
+.page {
+  display: grid;
+  gap: var(--space-5);
+}
+
+/* ── Diff block (before/after code) ───────────────────────── */
+.diffBlock {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.diff {
+  margin: 0;
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  overflow-x: auto;
+}
+
+.ln {
+  display: block;
+  padding: 1px 0;
+}
+
+.del {
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  color: var(--color-danger);
+}
+
+.del::before {
+  content: '− ';
+  opacity: 0.6;
+}
+
+.add {
+  background: color-mix(in srgb, var(--color-twin) 12%, transparent);
+  color: var(--color-twin);
+}
+
+.add::before {
+  content: '+ ';
+  opacity: 0.6;
+}
+
+.diffNote {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* ── Section spacing inside panels ────────────────────────── */
+.section {
+  display: grid;
+  gap: var(--space-3);
+}
+
+/* ── Headers table ─────────────────────────────────────────── */
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.table th {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border-strong);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.table code {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  background: var(--color-surface-sunken);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+.values {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.meaning {
+  color: var(--color-text-muted);
+}
+
+/* ── Prose sections ────────────────────────────────────────── */
+.prose {
+  display: grid;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  line-height: var(--leading-normal);
+}
+
+.prose p {
+  margin: 0;
+}
+
+.prose strong {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.prose a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.prose a:hover {
+  color: var(--color-accent-hover);
+}
+
+.prose ul {
+  margin: 0;
+  padding-left: var(--space-5);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.prose code {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  background: var(--color-surface-sunken);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
