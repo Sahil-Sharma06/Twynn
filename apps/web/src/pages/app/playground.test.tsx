@@ -124,6 +124,7 @@ describe('Playground', () => {
     await user.click(screen.getByRole('button', { name: 'Send both' }));
 
     expect(await within(b).findByText('Twin hit')).toBeInTheDocument();
+    expect(screen.getByText('twin · 0.971')).toBeInTheDocument(); // the link between the prompts
     expect(within(b).getByText(/0.971/)).toBeInTheDocument();
     expect(await within(b).findByText('Capital of France?')).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent(/faster/);

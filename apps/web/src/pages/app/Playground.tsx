@@ -240,6 +240,16 @@ export function Playground() {
 
   const noProvider = provider.data === null;
   const running = panes.a.running || panes.b.running;
+  // A twin hit in either pane draws a link between the two prompts.
+  const twinResult = [panes.b.result, panes.a.result].find(
+    (r) => r?.status === 'HIT' && r.layer === 'twin',
+  );
+  const twinLink = twinResult
+    ? {
+        key: twinResult.requestId ?? String(twinResult.totalMs),
+        score: twinResult.matchScore === null ? '' : twinResult.matchScore.toFixed(3),
+      }
+    : null;
   const comparison =
     panes.a.result && panes.b.result ? compareRuns(panes.a.result, panes.b.result) : null;
   const threshold = settings.data?.semanticEnabled ? settings.data.twinThreshold : null;
@@ -332,6 +342,14 @@ export function Playground() {
       )}
 
       <div className={styles.panes}>
+        {twinLink && (
+          <div className={styles.link} aria-hidden="true" key={twinLink.key}>
+            <svg viewBox="0 0 100 20" preserveAspectRatio="none" className={styles.linkLine}>
+              <path d="M0 10 H100" pathLength={1} />
+            </svg>
+            <span className={styles.linkLabel}>twin · {twinLink.score}</span>
+          </div>
+        )}
         {(['a', 'b'] as const).map((side) => (
           <Pane
             key={side}

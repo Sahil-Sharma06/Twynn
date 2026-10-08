@@ -9,6 +9,7 @@ import {
   type EvaluationPair,
   type Recommendation,
 } from '@twynn/shared';
+import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { Callout } from '../../components/Callout';
 import { Skeleton } from '../../components/Spinner';
@@ -145,6 +146,13 @@ function PairCard({ pair, current }: { pair: EvaluationPair; current: number }) 
     >
       <div className={styles.pairHead}>
         <span className={styles.score}>{formatScore(pair.score)}</span>
+        {pair.label === null ? (
+          <Badge tone="neutral">Not reviewed</Badge>
+        ) : pair.label ? (
+          <Badge tone="twin">Same meaning</Badge>
+        ) : (
+          <Badge tone="danger">Different</Badge>
+        )}
         <span className={styles.served}>
           {pair.score >= current
             ? 'Served as a twin at your threshold'
