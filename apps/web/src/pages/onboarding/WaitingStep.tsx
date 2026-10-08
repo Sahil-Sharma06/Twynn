@@ -5,6 +5,7 @@ import { ButtonLink } from '../../components/Button';
 import { Callout } from '../../components/Callout';
 import { LayerBadge } from '../../components/LayerBadge';
 import { Mark } from '../../components/Logo';
+import { Celebration } from './celebration/Celebration';
 import { useRequestEvents } from '../../lib/events';
 import { formatMs } from '../../lib/format';
 import { keys, useRecentRequests } from '../../lib/queries';
@@ -41,7 +42,9 @@ export function WaitingStep() {
   if (!first) {
     return (
       <div className={styles.waiting} role="status" aria-live="polite">
-        <Mark size={40} animated />
+        <span className={styles.breathe} aria-hidden="true">
+          <Mark size={44} />
+        </span>
         <div>
           <p className={styles.waitingTitle}>Waiting for your first request…</p>
           <p className={styles.help}>
@@ -55,26 +58,29 @@ export function WaitingStep() {
   }
 
   return (
-    <div className={styles.form} aria-live="polite">
-      {sawError ? (
-        <Callout tone="warning" title="Twynn received your request, but it was not answered">
-          Your provider or the request itself returned an error (HTTP {first.statusCode}). Check the
-          provider base URL, key and model name, then send it again.
-        </Callout>
-      ) : (
-        <Callout title="Your gateway is live">
-          {sawHit
-            ? 'That repeat was answered from the cache, without calling your provider.'
-            : 'Run the same snippet again: the repeat is answered from the cache.'}
-        </Callout>
-      )}
-      <ul className={styles.requests}>
-        {seen.map((request) => (
-          <RequestRow key={request.id} request={request} />
-        ))}
-      </ul>
-      <div>
-        <ButtonLink to="/app">Go to your dashboard</ButtonLink>
+    <div className={sawError ? styles.form : styles.arrived} aria-live="polite">
+      {!sawError && <Celebration />}
+      <div className={styles.form}>
+        {sawError ? (
+          <Callout tone="warning" title="Twynn received your request, but it was not answered">
+            Your provider or the request itself returned an error (HTTP {first.statusCode}). Check
+            the provider base URL, key and model name, then send it again.
+          </Callout>
+        ) : (
+          <Callout title="Your gateway is live">
+            {sawHit
+              ? 'That repeat was answered from the cache, without calling your provider.'
+              : 'Run the same snippet again: the repeat is answered from the cache.'}
+          </Callout>
+        )}
+        <ul className={styles.requests}>
+          {seen.map((request) => (
+            <RequestRow key={request.id} request={request} />
+          ))}
+        </ul>
+        <div>
+          <ButtonLink to="/app">Go to your dashboard</ButtonLink>
+        </div>
       </div>
     </div>
   );

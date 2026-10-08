@@ -2,10 +2,14 @@
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  background:
-    radial-gradient(60rem 30rem at 10% -10%, var(--color-exact-soft), transparent 70%),
-    radial-gradient(50rem 30rem at 110% 110%, var(--color-twin-soft), transparent 70%),
-    var(--color-bg);
+  position: relative;
+  background: var(--color-bg);
+}
+
+.header,
+.main {
+  position: relative;
+  z-index: 1;
 }
 
 .header {
@@ -45,7 +49,8 @@
 }
 
 .heading h1 {
-  font-size: var(--text-2xl);
+  font-size: var(--text-3xl);
+  letter-spacing: -0.03em;
 }
 
 .heading p {

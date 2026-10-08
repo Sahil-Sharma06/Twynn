@@ -51,7 +51,10 @@ export function Onboarding() {
     <div className={styles.page}>
       <div className={styles.intro}>
         <h1>Set up your gateway</h1>
-        <p>Four steps, about two minutes. Everything you see here comes from your own workspace.</p>
+        <p>
+          Four steps, from connecting your provider to watching your first request arrive in your
+          own workspace.
+        </p>
       </div>
       <ol className={styles.steps}>
         <Step

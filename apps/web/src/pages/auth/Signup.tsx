@@ -34,7 +34,7 @@ export function Signup() {
   return (
     <AuthCard
       title="Create your gateway"
-      subtitle="An account gives you a private workspace, gateway keys and live analytics."
+      subtitle="Your account comes with a private workspace. Setup then takes you from provider to first request."
       footer={
         <>
           Already have an account? <Link to="/login">Log in</Link>

@@ -1,18 +1,10 @@
 import { lazy, Suspense, useState } from 'react';
 import { useReducedMotion } from '../../../lib/motion';
+import { webglAvailable } from '../../../lib/webgl';
 import { HeroStill } from './HeroStill';
 import styles from './Hero.module.css';
 
 const HeroScene = lazy(() => import('./HeroScene'));
-
-function webglAvailable(): boolean {
-  try {
-    const canvas = document.createElement('canvas');
-    return Boolean(canvas.getContext('webgl2') ?? canvas.getContext('webgl'));
-  } catch {
-    return false;
-  }
-}
 
 /**
  * The hero visual. The 3D scene (Three.js, loaded on demand) plays only when motion is

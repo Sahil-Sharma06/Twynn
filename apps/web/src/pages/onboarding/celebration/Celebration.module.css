@@ -1,0 +1,16 @@
+.frame {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+  overflow: hidden;
+}
+
+.still {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}

@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { PRODUCT_NAME } from '@twynn/shared';
 import { Logo } from '../../components/Logo';
 import { ThemeToggle } from '../../components/ThemeToggle';
+import { TwinBackdrop } from '../../components/TwinBackdrop';
 import styles from './Auth.module.css';
 
 export function AuthCard({
@@ -18,6 +19,7 @@ export function AuthCard({
 }) {
   return (
     <div className={styles.page}>
+      <TwinBackdrop />
       <header className={styles.header}>
         <Link to="/" aria-label={`${PRODUCT_NAME} home`} className={styles.home}>
           <Logo />

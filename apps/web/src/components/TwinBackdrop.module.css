@@ -1,0 +1,86 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.pair {
+  position: absolute;
+  width: 18rem;
+  height: 8rem;
+}
+
+.pair[data-pair='0'] {
+  left: 6%;
+  top: 14%;
+}
+.pair[data-pair='1'] {
+  right: 4%;
+  top: 46%;
+  transform: scale(0.8);
+}
+.pair[data-pair='2'] {
+  left: 18%;
+  bottom: 6%;
+  transform: scale(0.65);
+}
+
+.bubble {
+  position: absolute;
+  width: 9rem;
+  height: 4rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  opacity: 0.7;
+}
+
+.a {
+  left: 0;
+  top: 0;
+  border-bottom-left-radius: 3px;
+  animation: drift-a 26s var(--ease-in-out) infinite alternate;
+}
+
+.b {
+  right: 0;
+  bottom: 0;
+  border-bottom-right-radius: 3px;
+  animation: drift-b 26s var(--ease-in-out) infinite alternate;
+}
+
+/* One pair carries the product colours; the rest stay neutral. */
+.pair[data-pair='0'] .a {
+  border-color: var(--color-exact);
+  opacity: 0.35;
+}
+.pair[data-pair='0'] .b {
+  border-color: var(--color-twin);
+  opacity: 0.35;
+}
+
+.pair[data-pair='1'] .bubble {
+  animation-delay: -9s;
+}
+.pair[data-pair='2'] .bubble {
+  animation-delay: -17s;
+}
+
+@keyframes drift-a {
+  to {
+    transform: translate(3.5rem, 1.5rem);
+  }
+}
+
+@keyframes drift-b {
+  to {
+    transform: translate(-3.5rem, -1.5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble {
+    animation: none;
+  }
+}

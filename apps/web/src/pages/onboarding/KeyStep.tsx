@@ -42,7 +42,10 @@ export function KeyStep({
           This is the only time Twynn shows it. Only a fingerprint is stored, so it cannot be
           recovered later. If you lose it, create a new one.
         </Callout>
-        <CodeBlock code={created.key} label="Copy gateway key" />
+        <div className={styles.reveal}>
+          <p className={styles.revealLabel}>Gateway key · {created.name}</p>
+          <CodeBlock code={created.key} label="Copy gateway key" />
+        </div>
         <div>
           <Button onClick={onContinue}>I have saved my key</Button>
         </div>
