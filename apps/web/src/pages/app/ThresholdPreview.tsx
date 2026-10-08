@@ -4,6 +4,7 @@ import {
   VOCABULARY,
   type ThresholdPreview as Preview,
 } from '@twynn/shared';
+import { AnimatedNumber } from '../../components/AnimatedNumber';
 import { Callout } from '../../components/Callout';
 import { Skeleton } from '../../components/Spinner';
 import { formatInteger, formatPercent, formatScore } from '../../lib/format';
@@ -14,25 +15,33 @@ const MIN = CACHE_SETTINGS_LIMITS.twinThreshold.min;
 const BINS = 50; // 0.01 wide, from MIN to 1
 
 /** Plain-language reading of a threshold value. */
-export function describeThreshold(t: number): { tone: 'info' | 'warning'; text: string } {
+export function describeThreshold(t: number): {
+  tone: 'info' | 'warning';
+  band: string;
+  text: string;
+} {
   if (t >= 0.98)
     return {
       tone: 'info',
-      text: 'Very strict. Only near-identical rewordings count as twins, so few requests are answered this way, but wrong answers are very unlikely.',
+      band: 'Very strict',
+      text: 'Only near-identical rewordings count as twins, so few requests are answered this way, but wrong answers are very unlikely.',
     };
   if (t >= 0.93)
     return {
       tone: 'info',
-      text: 'Balanced. Rephrasings of the same question count as twins; questions that differ in a detail that matters usually do not.',
+      band: 'Balanced',
+      text: 'Rephrasings of the same question count as twins; questions that differ in a detail that matters usually do not.',
     };
   if (t >= 0.85)
     return {
       tone: 'warning',
-      text: 'Loose. More requests are answered from the cache, but related questions with different answers may be treated as twins. Check the examples below.',
+      band: 'Loose',
+      text: 'More requests are answered from the cache, but related questions with different answers may be treated as twins. Check the examples below.',
     };
   return {
     tone: 'warning',
-    text: 'Very loose. Questions that only share a topic may be treated as twins and given the wrong stored answer.',
+    band: 'Very loose',
+    text: 'Questions that only share a topic may be treated as twins and given the wrong stored answer.',
   };
 }
 
@@ -101,8 +110,11 @@ export function ThresholdImpact({ current, proposed }: { current: number; propos
   return (
     <div className={styles.impact}>
       <p className={styles.impactLine} aria-live="polite">
-        In the last {p.days} days, <strong>{formatInteger(then)}</strong> of{' '}
-        {formatInteger(p.searches)} twin searches ({formatPercent(then / p.searches)}) would have
+        In the last {p.days} days,{' '}
+        <strong>
+          <AnimatedNumber value={then} format={(n) => formatInteger(Math.round(n))} />
+        </strong>{' '}
+        of {formatInteger(p.searches)} twin searches ({formatPercent(then / p.searches)}) would have
         been answered from the cache at {formatScore(proposed)}
         {delta === 0
           ? ', the same as now.'

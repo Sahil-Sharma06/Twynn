@@ -108,7 +108,7 @@ function CacheSettingsForm({ saved }: { saved: CacheSettings }) {
               step={0.005}
               value={draft.twinThreshold}
               onChange={(e) => set('twinThreshold', Number(e.target.value))}
-              aria-valuetext={`${formatScore(draft.twinThreshold)}: ${reading.text}`}
+              aria-valuetext={`${formatScore(draft.twinThreshold)}, ${reading.band}: ${reading.text}`}
               className={styles.slider}
             />
             <output htmlFor={sliderId} className={styles.value}>
@@ -119,7 +119,12 @@ function CacheSettingsForm({ saved }: { saved: CacheSettings }) {
             <span>More twins, more risk</span>
             <span>Fewer twins, safer</span>
           </div>
-          <Callout tone={reading.tone}>{reading.text}</Callout>
+          <Callout tone={reading.tone}>
+            <span className={styles.band}>
+              <span className={styles.bandName}>{reading.band}</span>
+              <span>{reading.text}</span>
+            </span>
+          </Callout>
           {errors.twinThreshold && <p className={styles.error}>{errors.twinThreshold}</p>}
           <div className={styles.preview}>
             <p className={styles.previewTitle}>

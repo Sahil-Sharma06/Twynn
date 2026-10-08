@@ -160,6 +160,12 @@ describe('dashboard helpers', () => {
     expect(describeThreshold(0.95).tone).toBe('info');
     expect(describeThreshold(0.88).tone).toBe('warning');
     expect(describeThreshold(0.6).text).toMatch(/wrong stored answer/);
+    expect([0.99, 0.95, 0.88, 0.6].map((t) => describeThreshold(t).band)).toEqual([
+      'Very strict',
+      'Balanced',
+      'Loose',
+      'Very loose',
+    ]);
   });
 
   it('formats durations and stored answers', () => {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import type { CreatedGatewayKey, GatewayKeyView } from '@twynn/shared';
 import { Callout } from '../../components/Callout';
+import { useToast } from '../../components/Toast';
 import { Skeleton } from '../../components/Spinner';
 import { ConfirmButton, EmptyState, PageHeader, Panel } from '../../components/Ui';
 import { formatDateTime, formatRelative } from '../../lib/format';
@@ -11,6 +12,7 @@ import styles from './Keys.module.css';
 
 function KeyRow({ k }: { k: GatewayKeyView }) {
   const revoke = useRevokeKey();
+  const toast = useToast();
   const revoked = k.revokedAt !== null;
   return (
     <tr data-revoked={revoked || undefined}>
@@ -47,7 +49,9 @@ function KeyRow({ k }: { k: GatewayKeyView }) {
             confirmLabel="Revoke"
             prompt={`Revoke "${k.name}"? Apps using it stop working at once.`}
             loading={revoke.isPending}
-            onConfirm={() => revoke.mutate(k.id)}
+            onConfirm={() =>
+              revoke.mutate(k.id, { onSuccess: () => toast(`Key "${k.name}" revoked`, 'success') })
+            }
           />
         )}
         {revoke.isError && (

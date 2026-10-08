@@ -38,7 +38,7 @@
 }
 
 .active {
-  color: var(--color-twin);
+  color: var(--color-text);
   font-weight: 600;
 }
 
