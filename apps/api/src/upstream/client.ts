@@ -1,4 +1,5 @@
 import { GatewayError } from '../lib/errors';
+import type { HostGuard } from '../lib/url-safety';
 
 const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504]);
 const BASE_BACKOFF_MS = 250;
@@ -9,6 +10,8 @@ export interface UpstreamOptions {
   maxRetries: number;
   fetch?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
+  /** In production, rejects provider hosts that resolve to private addresses. */
+  hostGuard?: HostGuard | null;
 }
 
 export interface UpstreamRequest {
@@ -65,7 +68,16 @@ export class UpstreamClient {
 
   private async send<T>(request: UpstreamRequest, read: (res: Response) => Promise<T>): Promise<T> {
     const url = `${request.baseUrl.replace(/\/+$/, '')}${request.path}`;
-    const { timeoutMs, maxRetries } = this.options;
+    const { timeoutMs, maxRetries, hostGuard } = this.options;
+    const problem = hostGuard ? await hostGuard(request.baseUrl) : null;
+    if (problem) {
+      throw new GatewayError(
+        400,
+        'invalid_request_error',
+        `The provider URL is not allowed: ${problem} Update it in the Twynn dashboard.`,
+        'invalid_base_url',
+      );
+    }
 
     for (let attempt = 0; ; attempt++) {
       const timeout = new AbortController();

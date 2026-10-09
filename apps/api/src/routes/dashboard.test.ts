@@ -5,6 +5,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import type { Database } from '../db/client';
 import { gatewayKeys, providers, sessions, users } from '../db/schema';
 import { sha256 } from '../lib/crypto';
+import { createHostGuard } from '../lib/url-safety';
 import {
   Browser,
   buildApp,
@@ -272,6 +273,20 @@ describe('provider', () => {
     });
     expect(res.status).toBe(400);
     expect(await res.json()).toMatchObject({ error: { code: 'invalid_base_url' } });
+  });
+
+  it('rejects public-looking hosts that resolve to private addresses in production', async () => {
+    const hostGuard = createHostGuard(async () => [{ address: '10.0.0.7', family: 4 }]);
+    const b = new Browser(buildApp({ db, production: true, hostGuard }));
+    await b.call('POST', '/api/auth/signup', { email: freshEmail(), password });
+    const res = await b.call('PUT', '/api/provider', {
+      baseUrl: 'https://internal-looking-public.example.com/v1',
+      apiKey: 'sk-x',
+    });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({
+      error: { code: 'invalid_base_url', message: expect.stringMatching(/public addresses/) },
+    });
   });
 
   it('disconnects a provider', async () => {

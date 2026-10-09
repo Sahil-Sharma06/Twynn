@@ -12,6 +12,7 @@ import type { ExactCache } from '../cache/exact';
 import { CacheManager } from '../cache/manager';
 import type { Database } from '../db/client';
 import { MemoryEventBus, type EventBus } from '../lib/events';
+import type { HostGuard } from '../lib/url-safety';
 import { MemoryCounter, RateLimiter, type Guard, type Limit } from '../lib/rate-limit';
 import { RequestRecorder } from '../metering/recorder';
 import * as schema from '../db/schema';
@@ -126,6 +127,7 @@ export interface TestAppOptions extends Partial<Pick<AppDeps, 'checks' | 'health
   shutdown?: AbortSignal;
   /** Limits to apply; by default every limit is off so suites can create many accounts. */
   guard?: Partial<Guard>;
+  hostGuard?: HostGuard;
 }
 
 const off = (name: string): Limit => ({ name, max: 0, windowSeconds: 60 });
@@ -188,6 +190,7 @@ export function buildApp(options: TestAppOptions): TestApp {
       production,
       gatewayUrl: 'https://gateway.test/v1',
       guard,
+      hostGuard: options.hostGuard ?? null,
     },
     analytics: {
       db,

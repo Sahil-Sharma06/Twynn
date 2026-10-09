@@ -18,6 +18,7 @@ import { Embedder } from './semantic/embeddings';
 import { ProviderStore } from './services/providers';
 import { createTenantResolver, createWorkspaceLoader } from './services/tenancy';
 import { UpstreamClient } from './upstream/client';
+import { createHostGuard } from './lib/url-safety';
 import { AUTH_LIMITS, createRedisCounter, RateLimiter, type Guard } from './lib/rate-limit';
 
 const config = loadConfig();
@@ -30,13 +31,19 @@ await Promise.all([redis.connect(), subscriber.connect()]);
 const events = await createRedisEventBus(redis, subscriber, logger);
 const shutdownController = new AbortController();
 
+// In production, provider hosts must resolve only to public addresses (SSRF protection).
+const hostGuard = production ? createHostGuard() : null;
 const providers = new ProviderStore(db, parseEncryptionKey(config.TWYNN_ENCRYPTION_KEY));
 const entries = new EntryStore(db, logger);
 const cache = new CacheManager(
   createRedisExactCache(redis, logger),
   entries,
   new Embedder(
-    new UpstreamClient({ timeoutMs: config.TWYNN_EMBEDDING_TIMEOUT_MS, maxRetries: 1 }),
+    new UpstreamClient({
+      timeoutMs: config.TWYNN_EMBEDDING_TIMEOUT_MS,
+      maxRetries: 1,
+      hostGuard,
+    }),
     logger,
   ),
   logger,
@@ -65,6 +72,7 @@ const app = createApp({
     upstream: new UpstreamClient({
       timeoutMs: config.TWYNN_UPSTREAM_TIMEOUT_MS,
       maxRetries: config.TWYNN_UPSTREAM_MAX_RETRIES,
+      hostGuard,
     }),
     recorder,
     guard,
@@ -77,6 +85,7 @@ const app = createApp({
     production,
     gatewayUrl: config.TWYNN_PUBLIC_GATEWAY_URL,
     guard,
+    hostGuard,
   },
   analytics: { db, cookie, events, shutdown: shutdownController.signal },
   cacheAdmin: { db, cookie, entries, cache },

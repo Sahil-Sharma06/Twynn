@@ -1,3 +1,4 @@
+import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 
 const BLOCKED_HOSTNAMES = new Set(['localhost', 'metadata.google.internal']);
@@ -59,4 +60,65 @@ export function providerUrlProblem(raw: string, production: boolean): string | n
     return 'Must be a public host.';
   }
   return null;
+}
+
+/** Any address a provider URL must never reach: loopback, private, link-local or metadata. */
+export function isPrivateAddress(ip: string): boolean {
+  const family = isIP(ip);
+  return family === 4 ? isPrivateIPv4(ip) : family === 6 ? isPrivateIPv6(ip) : true;
+}
+
+export type Lookup = (hostname: string) => Promise<Array<{ address: string; family: number }>>;
+
+export const dnsLookup: Lookup = (hostname) => lookup(hostname, { all: true, verbatim: true });
+
+/**
+ * Resolves the provider host and rejects it if any address it resolves to is private, so a
+ * public-looking name pointing at an internal address is caught. Returns a problem or null.
+ */
+export async function resolvedHostProblem(
+  raw: string,
+  lookupFn: Lookup = dnsLookup,
+): Promise<string | null> {
+  let host: string;
+  try {
+    host = new URL(raw).hostname.replace(/^\[|\]$/g, '');
+  } catch {
+    return 'Must be a valid URL.';
+  }
+  if (isIP(host)) return isPrivateAddress(host) ? 'Must be a public host.' : null;
+  let addresses: Array<{ address: string }>;
+  try {
+    addresses = await lookupFn(host);
+  } catch {
+    return 'The host could not be resolved.';
+  }
+  if (addresses.length === 0) return 'The host could not be resolved.';
+  return addresses.some((a) => isPrivateAddress(a.address))
+    ? 'Must resolve only to public addresses.'
+    : null;
+}
+
+/** Checks a provider URL before it is used; returns a problem or null. */
+export type HostGuard = (baseUrl: string) => Promise<string | null>;
+
+/**
+ * A resolved-host check with a short per-host cache, run before every upstream call so a
+ * host whose DNS later changes to a private address is blocked too.
+ */
+export function createHostGuard(lookupFn: Lookup = dnsLookup, ttlMs = 60_000): HostGuard {
+  const cache = new Map<string, { problem: string | null; until: number }>();
+  return async (baseUrl) => {
+    let key: string;
+    try {
+      key = new URL(baseUrl).hostname;
+    } catch {
+      return 'Must be a valid URL.';
+    }
+    const hit = cache.get(key);
+    if (hit && hit.until > Date.now()) return hit.problem;
+    const problem = await resolvedHostProblem(baseUrl, lookupFn);
+    cache.set(key, { problem, until: Date.now() + ttlMs });
+    return problem;
+  };
 }

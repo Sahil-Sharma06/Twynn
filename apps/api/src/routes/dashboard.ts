@@ -19,7 +19,7 @@ import type { Database } from '../db/client';
 import { sha256 } from '../lib/crypto';
 import { GatewayError } from '../lib/errors';
 import { clientIp, type Guard } from '../lib/rate-limit';
-import { providerUrlProblem } from '../lib/url-safety';
+import { providerUrlProblem, type HostGuard } from '../lib/url-safety';
 import { parseJsonBody } from '../lib/validation';
 import { authenticate, signup } from '../services/accounts';
 import { createGatewayKey, listGatewayKeys, revokeGatewayKey } from '../services/keys';
@@ -41,6 +41,8 @@ export interface DashboardDeps {
   production: boolean;
   gatewayUrl: string;
   guard: Guard;
+  /** Resolves provider hosts before saving; set in production. */
+  hostGuard?: HostGuard | null;
 }
 
 const notFound = (what: string) => new GatewayError(404, 'not_found_error', `${what} not found.`);
@@ -132,7 +134,9 @@ export function dashboardRoutes(deps: DashboardDeps): Hono<AppEnv> {
 
   routes.put('/provider', authed, async (c) => {
     const input = await parseJsonBody(c, providerInputSchema);
-    const problem = providerUrlProblem(input.baseUrl, deps.production);
+    const problem =
+      providerUrlProblem(input.baseUrl, deps.production) ??
+      (deps.hostGuard ? await deps.hostGuard(input.baseUrl) : null);
     if (problem) {
       throw new GatewayError(
         400,
