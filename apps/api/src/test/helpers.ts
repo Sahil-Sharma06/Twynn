@@ -156,7 +156,7 @@ export function buildApp(options: TestAppOptions): TestApp {
   const cookie = sessionCookie(production);
   const guard = testGuard(options.guard);
   const events = options.events ?? new MemoryEventBus();
-  const entries = new EntryStore(db, silentLogger);
+  const entries = new EntryStore(db, silentLogger, 10);
   const providers = new ProviderStore(db, randomBytes(32));
   const upstream = new UpstreamClient({
     timeoutMs: 1_000,
@@ -168,7 +168,6 @@ export function buildApp(options: TestAppOptions): TestApp {
     options.cache ?? new MemoryCache(),
     entries,
     new Embedder(upstream, silentLogger),
-    silentLogger,
   );
   return createApp({
     logger: silentLogger,

@@ -70,9 +70,15 @@ const live = () => gt(cacheEntries.expiresAt, sql`now()`);
 
 /** Postgres catalogue of cached responses and the Layer 2 (twin) search. */
 export class EntryStore {
+  // Hits are counted in memory and written in one statement per flush, not one per hit.
+  private pendingById = new Map<string, number>();
+  private pendingByKey = new Map<string, number>();
+  private flushTimer: NodeJS.Timeout | null = null;
+
   constructor(
     private readonly db: Database,
     private readonly logger: Logger,
+    private readonly hitFlushMs = 2_000,
   ) {}
 
   /** The twin candidate at or above the threshold (inclusive), if any. */
@@ -148,12 +154,46 @@ export class EntryStore {
     }
   }
 
-  /** Counts a hit. Bookkeeping only, so callers should not await it on the request path. */
-  async recordHit(by: { exactKey: string } | { id: string }): Promise<void> {
-    await this.db
-      .update(cacheEntries)
-      .set({ hitCount: sql`${cacheEntries.hitCount} + 1`, lastHitAt: new Date() })
-      .where('id' in by ? eq(cacheEntries.id, by.id) : eq(cacheEntries.exactKey, by.exactKey));
+  /** Counts a hit. Bookkeeping only: buffered and written by the next flush. */
+  recordHit(by: { exactKey: string } | { id: string }): void {
+    const [map, key] = 'id' in by ? [this.pendingById, by.id] : [this.pendingByKey, by.exactKey];
+    map.set(key, (map.get(key) ?? 0) + 1);
+    if (this.flushTimer) return;
+    this.flushTimer = setTimeout(() => {
+      this.flushTimer = null;
+      this.flushHits().catch((err) => this.logger.warn({ err }, 'failed to record cache hits'));
+    }, this.hitFlushMs);
+    this.flushTimer.unref();
+  }
+
+  /** Writes buffered hit counts. Called on a timer and on shutdown. */
+  async flushHits(): Promise<void> {
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+    const byId = this.pendingById;
+    const byKey = this.pendingByKey;
+    this.pendingById = new Map();
+    this.pendingByKey = new Map();
+    if (byId.size > 0) {
+      const rows = sql.join(
+        [...byId].map(([id, n]) => sql`(${id}::uuid, ${n}::int)`),
+        sql`, `,
+      );
+      await this.db.execute(sql`
+        update ${cacheEntries} set hit_count = ${cacheEntries.hitCount} + v.n, last_hit_at = now()
+        from (values ${rows}) as v(id, n) where ${cacheEntries.id} = v.id`);
+    }
+    if (byKey.size > 0) {
+      const rows = sql.join(
+        [...byKey].map(([key, n]) => sql`(${key}::text, ${n}::int)`),
+        sql`, `,
+      );
+      await this.db.execute(sql`
+        update ${cacheEntries} set hit_count = ${cacheEntries.hitCount} + v.n, last_hit_at = now()
+        from (values ${rows}) as v(k, n) where ${cacheEntries.exactKey} = v.k`);
+    }
   }
 
   async list(workspaceId: string, filters: CacheEntryFilters): Promise<CacheEntryPage> {

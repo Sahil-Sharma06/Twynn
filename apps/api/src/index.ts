@@ -46,7 +46,6 @@ const cache = new CacheManager(
     }),
     logger,
   ),
-  logger,
 );
 const recorder = new RequestRecorder(db, events, logger);
 const cookie = sessionCookie(production);
@@ -127,7 +126,7 @@ async function shutdown(signal: string): Promise<void> {
 
   shutdownController.abort(); // ends open event streams
   await new Promise<void>((resolve) => server.close(() => resolve()));
-  await recorder.flush();
+  await Promise.allSettled([recorder.flush(), entries.flushHits()]);
   await Promise.allSettled([pool.end(), redis.quit(), subscriber.quit()]);
   clearTimeout(force);
   logger.info('shutdown complete');

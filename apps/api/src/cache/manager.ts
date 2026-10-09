@@ -1,5 +1,4 @@
 import type { CacheSettings, InvalidateInput } from '@twynn/shared';
-import type { Logger } from 'pino';
 import type { ChatCompletionRequest } from '../proxy/schema';
 import type { Embedder, Embedding } from '../semantic/embeddings';
 import { finalMessageText, semanticQuery, type SemanticQuery } from '../semantic/request';
@@ -59,7 +58,6 @@ export class CacheManager {
     private readonly exact: ExactCache,
     private readonly entries: EntryStore,
     private readonly embedder: Embedder,
-    private readonly logger: Logger,
   ) {}
 
   /**
@@ -74,7 +72,7 @@ export class CacheManager {
     if (read) {
       const cached = await this.exact.get(exactKey);
       if (cached !== null) {
-        this.track(this.entries.recordHit({ exactKey }));
+        this.entries.recordHit({ exactKey });
         return {
           hit: { layer: 'exact', response: cached },
           exactKey,
@@ -106,7 +104,7 @@ export class CacheManager {
       });
       const nearest = twin && { score: twin.score, prompt: twin.prompt };
       if (twin && twin.score >= settings.twinThreshold) {
-        this.track(this.entries.recordHit({ id: twin.id }));
+        this.entries.recordHit({ id: twin.id });
         return {
           hit: {
             layer: 'twin',
@@ -163,9 +161,5 @@ export class CacheManager {
       found.map((e) => e.id),
     );
     return found.length;
-  }
-
-  private track(task: Promise<void>): void {
-    task.catch((err) => this.logger.warn({ err }, 'failed to record cache hit'));
   }
 }
