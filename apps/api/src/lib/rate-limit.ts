@@ -136,6 +136,9 @@ export interface AuthLimits {
   loginPerEmail: Limit;
   loginPerIp: Limit;
   signupPerIp: Limit;
+  resetPerEmail: Limit;
+  resetPerIp: Limit;
+  verifyResend: Limit;
 }
 
 /** Brute-force protection for sign-in. Fixed, deliberately conservative values. */
@@ -143,4 +146,7 @@ export const AUTH_LIMITS = {
   loginPerEmail: { name: 'login-email', max: 10, windowSeconds: 15 * 60 },
   loginPerIp: { name: 'login-ip', max: 50, windowSeconds: 15 * 60 },
   signupPerIp: { name: 'signup-ip', max: 10, windowSeconds: 60 * 60 },
+  resetPerEmail: { name: 'reset-email', max: 3, windowSeconds: 60 * 60 },
+  resetPerIp: { name: 'reset-ip', max: 20, windowSeconds: 60 * 60 },
+  verifyResend: { name: 'verify-resend', max: 5, windowSeconds: 60 * 60 },
 } as const satisfies AuthLimits;

@@ -24,6 +24,7 @@ export async function resolveSession(db: Database, token: string): Promise<Sessi
     .select({
       userId: users.id,
       email: users.email,
+      emailVerifiedAt: users.emailVerifiedAt,
       workspaceId: workspaces.id,
       workspaceName: workspaces.name,
     })
@@ -36,7 +37,7 @@ export async function resolveSession(db: Database, token: string): Promise<Sessi
     .limit(1);
   if (!row) return null;
   return {
-    user: { id: row.userId, email: row.email },
+    user: { id: row.userId, email: row.email, emailVerified: row.emailVerifiedAt !== null },
     workspace: { id: row.workspaceId, name: row.workspaceName },
   };
 }

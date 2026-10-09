@@ -13,6 +13,8 @@ import { CacheManager } from '../cache/manager';
 import type { Database } from '../db/client';
 import { MemoryEventBus, type EventBus } from '../lib/events';
 import type { HostGuard } from '../lib/url-safety';
+import { MemoryMailer, type Mailer } from '../lib/mailer';
+import { AccountEmails } from '../services/account-emails';
 import { MemoryCounter, RateLimiter, type Guard, type Limit } from '../lib/rate-limit';
 import { RequestRecorder } from '../metering/recorder';
 import * as schema from '../db/schema';
@@ -128,9 +130,11 @@ export interface TestAppOptions extends Partial<Pick<AppDeps, 'checks' | 'health
   /** Limits to apply; by default every limit is off so suites can create many accounts. */
   guard?: Partial<Guard>;
   hostGuard?: HostGuard;
+  /** Receives account emails; defaults to a fresh in-memory mailer. */
+  mailer?: Mailer;
 }
 
-const off = (name: string): Limit => ({ name, max: 0, windowSeconds: 60 });
+export const off = (name: string): Limit => ({ name, max: 0, windowSeconds: 60 });
 
 export function testGuard(overrides: Partial<Guard> = {}): Guard {
   return {
@@ -143,6 +147,9 @@ export function testGuard(overrides: Partial<Guard> = {}): Guard {
       loginPerEmail: off('login-email'),
       loginPerIp: off('login-ip'),
       signupPerIp: off('signup-ip'),
+      resetPerEmail: off('reset-email'),
+      resetPerIp: off('reset-ip'),
+      verifyResend: off('verify-resend'),
     },
     ...overrides,
   };
@@ -190,6 +197,7 @@ export function buildApp(options: TestAppOptions): TestApp {
       gatewayUrl: 'https://gateway.test/v1',
       guard,
       hostGuard: options.hostGuard ?? null,
+      emails: new AccountEmails(db, options.mailer ?? new MemoryMailer(), WEB_ORIGIN, silentLogger),
     },
     analytics: {
       db,

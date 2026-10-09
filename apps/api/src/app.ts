@@ -5,6 +5,7 @@ import { CACHE_HEADERS, PRODUCT_NAME } from '@twynn/shared';
 import type { Logger } from 'pino';
 import { csrfGuard } from './auth/middleware';
 import { GatewayError } from './lib/errors';
+import { accountRoutes } from './routes/account';
 import { analyticsRoutes, type AnalyticsDeps } from './routes/analytics';
 import { cacheRoutes, type CacheRoutesDeps } from './routes/cache';
 import { chatRoutes, playgroundRoutes, type ChatDeps } from './routes/chat';
@@ -106,6 +107,15 @@ export function createApp({
   app.route('/v1', chatRoutes(chat));
   app.use('/api/*', limitBody, csrfGuard(webOrigin));
   app.route('/api', dashboardRoutes(dashboard));
+  app.route(
+    '/api',
+    accountRoutes({
+      db: dashboard.db,
+      cookie: dashboard.cookie,
+      emails: dashboard.emails,
+      guard: dashboard.guard,
+    }),
+  );
   app.route('/api', analyticsRoutes(analytics));
   app.route('/api', cacheRoutes(cacheAdmin));
   app.route('/api', evaluationRoutes({ db: dashboard.db, cookie: dashboard.cookie }));

@@ -26,6 +26,18 @@ export const loginSchema = z.object({
   password: z.string().min(1).max(PASSWORD_MAX_LENGTH),
 });
 
+const token = z.string().trim().min(20).max(200);
+
+export const verifyEmailSchema = z.object({ token });
+
+/** Asking for a reset never reveals whether the email has an account. */
+export const passwordResetRequestSchema = z.object({ email });
+
+export const passwordResetConfirmSchema = z.object({
+  token,
+  password: z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH),
+});
+
 export const createKeySchema = z.object({
   name: z.string().trim().min(1).max(60),
 });
@@ -44,7 +56,7 @@ export interface PublicConfig {
 }
 
 export interface SessionView {
-  user: { id: string; email: string };
+  user: { id: string; email: string; emailVerified: boolean };
   workspace: { id: string; name: string };
 }
 

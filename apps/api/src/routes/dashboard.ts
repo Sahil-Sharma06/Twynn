@@ -23,6 +23,7 @@ import { providerUrlProblem, type HostGuard } from '../lib/url-safety';
 import { parseJsonBody } from '../lib/validation';
 import { authenticate, signup } from '../services/accounts';
 import { createGatewayKey, listGatewayKeys, revokeGatewayKey } from '../services/keys';
+import type { AccountEmails } from '../services/account-emails';
 import type { ProviderStore } from '../services/providers';
 import { getCacheSettings, updateCacheSettings } from '../services/settings';
 import {
@@ -41,6 +42,7 @@ export interface DashboardDeps {
   production: boolean;
   gatewayUrl: string;
   guard: Guard;
+  emails: AccountEmails;
   /** Resolves provider hosts before saving; set in production. */
   hostGuard?: HostGuard | null;
 }
@@ -73,6 +75,7 @@ export function dashboardRoutes(deps: DashboardDeps): Hono<AppEnv> {
     await deps.guard.limiter.enforce(deps.guard.auth.signupPerIp, ip, tooManyAttempts);
     const input = await parseJsonBody(c, signupSchema);
     const userId = await signup(db, input);
+    deps.emails.sendVerification(userId, input.email);
     return c.json(await startSession(c, userId), 201);
   });
 

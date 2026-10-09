@@ -31,7 +31,7 @@ export async function signup(db: Database, input: SignupInput): Promise<string> 
       throw new GatewayError(
         409,
         'invalid_request_error',
-        'An account with this email already exists.',
+        'An account with this email already exists. Log in, or reset your password if you have forgotten it.',
         'email_taken',
         'email',
       );

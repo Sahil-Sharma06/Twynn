@@ -38,6 +38,15 @@ const envSchema = z.object({
   TWYNN_DAILY_REQUEST_QUOTA: z.coerce.number().int().min(0).default(0),
   /** Sign-ups allowed per client address per hour. */
   TWYNN_SIGNUPS_PER_IP_PER_HOUR: z.coerce.number().int().min(0).default(10),
+  /** Resend API key for verification and password-reset emails. Without it, development logs
+   * emails instead of sending them and production sends none. */
+  // An empty value (as in .env.example or a Compose default) means not configured.
+  TWYNN_RESEND_API_KEY: z.preprocess(
+    (v) => (v === '' ? undefined : v),
+    z.string().min(1).optional(),
+  ),
+  /** Sender for account emails; the domain must be verified in Resend. */
+  TWYNN_EMAIL_FROM: z.string().min(3).default('Twynn <onboarding@resend.dev>'),
   /** Trust X-Forwarded-For for client IPs. Enable only behind a reverse proxy that sets it. */
   TWYNN_TRUST_PROXY: z
     .enum(['true', 'false'])

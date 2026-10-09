@@ -15,6 +15,11 @@ describe('loadConfig', () => {
     expect(config.TWYNN_WEB_ORIGIN).toBe('http://localhost:5173');
   });
 
+  it('treats an empty Resend key as not configured', () => {
+    expect(loadConfig({ ...base, TWYNN_RESEND_API_KEY: '' }).TWYNN_RESEND_API_KEY).toBeUndefined();
+    expect(loadConfig({ ...base, TWYNN_RESEND_API_KEY: 're_x' }).TWYNN_RESEND_API_KEY).toBe('re_x');
+  });
+
   it('reduces the web origin to scheme, host and port', () => {
     expect(
       loadConfig({ ...base, TWYNN_WEB_ORIGIN: 'https://app.twynn.dev/' }).TWYNN_WEB_ORIGIN,

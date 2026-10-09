@@ -49,6 +49,8 @@ services:
       TWYNN_PLAYGROUND_RATE_LIMIT_PER_MINUTE: ${TWYNN_PLAYGROUND_RATE_LIMIT_PER_MINUTE:-30}
       TWYNN_DAILY_REQUEST_QUOTA: ${TWYNN_DAILY_REQUEST_QUOTA:-0}
       TWYNN_LOG_RETENTION_DAYS: ${TWYNN_LOG_RETENTION_DAYS:-90}
+      TWYNN_RESEND_API_KEY: ${TWYNN_RESEND_API_KEY:-}
+      TWYNN_EMAIL_FROM: ${TWYNN_EMAIL_FROM:-Twynn <onboarding@resend.dev>}
     depends_on:
       postgres: { condition: service_healthy }
     restart: 'no'

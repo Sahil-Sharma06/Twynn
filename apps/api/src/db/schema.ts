@@ -19,6 +19,8 @@ export const users = pgTable('users', {
   /** Always stored lowercased and trimmed. */
   email: text('email').notNull().unique(),
   passwordHash: text('password_hash').notNull(),
+  /** Set when the user follows a verification (or password reset) link. */
+  emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
   createdAt: createdAt(),
 });
 
@@ -196,4 +198,21 @@ export const twinLabels = pgTable(
     labelledAt: timestamp('labelled_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [index().on(t.workspaceId)],
+);
+
+/** Single-use links for verifying an email or resetting a password. Only a hash is stored. */
+export const authTokens = pgTable(
+  'auth_tokens',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    purpose: text('purpose', { enum: ['verify_email', 'reset_password'] }).notNull(),
+    tokenHash: text('token_hash').notNull().unique(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.userId, t.purpose)],
 );

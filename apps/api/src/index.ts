@@ -19,6 +19,8 @@ import { ProviderStore } from './services/providers';
 import { createTenantResolver, createWorkspaceLoader } from './services/tenancy';
 import { UpstreamClient } from './upstream/client';
 import { createHostGuard } from './lib/url-safety';
+import { createDisabledMailer, createLogMailer, createResendMailer } from './lib/mailer';
+import { AccountEmails } from './services/account-emails';
 import { AUTH_LIMITS, createRedisCounter, RateLimiter, type Guard } from './lib/rate-limit';
 
 const config = loadConfig();
@@ -48,6 +50,15 @@ const cache = new CacheManager(
   ),
 );
 const recorder = new RequestRecorder(db, events, logger);
+const mailer = config.TWYNN_RESEND_API_KEY
+  ? createResendMailer({ apiKey: config.TWYNN_RESEND_API_KEY, from: config.TWYNN_EMAIL_FROM })
+  : production
+    ? createDisabledMailer(logger)
+    : createLogMailer(logger);
+if (production && !config.TWYNN_RESEND_API_KEY) {
+  logger.warn('TWYNN_RESEND_API_KEY is not set: verification and password-reset emails are off');
+}
+const emails = new AccountEmails(db, mailer, config.TWYNN_WEB_ORIGIN, logger);
 const cookie = sessionCookie(production);
 const guard: Guard = {
   limiter: new RateLimiter(createRedisCounter(redis, logger)),
@@ -85,6 +96,7 @@ const app = createApp({
     gatewayUrl: config.TWYNN_PUBLIC_GATEWAY_URL,
     guard,
     hostGuard,
+    emails,
   },
   analytics: { db, cookie, events, shutdown: shutdownController.signal },
   cacheAdmin: { db, cookie, entries, cache },
@@ -126,7 +138,7 @@ async function shutdown(signal: string): Promise<void> {
 
   shutdownController.abort(); // ends open event streams
   await new Promise<void>((resolve) => server.close(() => resolve()));
-  await Promise.allSettled([recorder.flush(), entries.flushHits()]);
+  await Promise.allSettled([recorder.flush(), entries.flushHits(), emails.flush()]);
   await Promise.allSettled([pool.end(), redis.quit(), subscriber.quit()]);
   clearTimeout(force);
   logger.info('shutdown complete');

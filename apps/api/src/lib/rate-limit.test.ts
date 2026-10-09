@@ -11,6 +11,7 @@ import {
   fakeFetch,
   gatewayPost,
   json,
+  off,
   readJson,
   silentLogger,
 } from '../test/helpers';
@@ -129,6 +130,9 @@ describe('sign-in abuse protection', () => {
     loginPerEmail: { name: 'login-email', max: 3, windowSeconds: 900 },
     loginPerIp: { name: 'login-ip', max: 100, windowSeconds: 900 },
     signupPerIp: { name: 'signup-ip', max: 2, windowSeconds: 3600 },
+    resetPerEmail: off('reset-email'),
+    resetPerIp: off('reset-ip'),
+    verifyResend: off('verify-resend'),
   };
 
   it('locks out an account after repeated attempts, even with the right password', async () => {
