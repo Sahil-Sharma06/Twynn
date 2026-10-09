@@ -117,16 +117,17 @@ Config, pricing and design tokens each have one source: `apps/api/src/config.ts`
 - **Tenant isolation**: every cache key, vector search, query and route is scoped to the workspace; cross-tenant ids read as "not found". Tests cover isolation for the cache, analytics, request detail, playground and evaluation labels.
 - **Gateway keys** are 24 random bytes, stored only as SHA-256 hashes with a short display prefix, and shown once at creation.
 - **Provider keys** are encrypted at rest with AES-256-GCM (`TWYNN_ENCRYPTION_KEY`), with the workspace id as authenticated data, so a ciphertext cannot be moved between workspaces.
-- **Passwords** are hashed with argon2id.
+- **Passwords** are hashed with argon2id. Password reset uses a single-use link that expires in an hour, is stored only as a hash, and signs out every session when used. Asking for a reset never reveals whether an account exists.
+- **Email verification** sends a single-use link at sign-up (expires in 48 hours). Verification is soft: unverified accounts keep full access and see a reminder.
 - **Sessions** are opaque random tokens stored as SHA-256 hashes, in an `HttpOnly`, `SameSite=Lax` cookie, `__Host-` prefixed and `Secure` in production.
 - **CSRF**: state-changing dashboard calls require an exact `Origin` match with `TWYNN_WEB_ORIGIN` and a JSON content type.
-- **SSRF**: in production, provider URLs must be `https` and may not point at localhost, private, link-local or cloud metadata addresses, including IPv4-mapped IPv6 forms. Hostnames are not resolved at check time, so a public hostname that resolves to a private address is not caught; restrict the API container's egress if that matters to you.
-- **Abuse limits**: per-key and per-workspace rate limits and quotas; sign-in limited per account and per address; sign-up per address. Client addresses come from the socket unless `TWYNN_TRUST_PROXY=true`.
+- **SSRF**: in production, provider URLs must be `https` and may not point at localhost, private, link-local or cloud metadata addresses, including IPv4-mapped IPv6 forms. Hostnames are resolved through DNS, and a host is rejected if any address it resolves to is private: when the provider is saved, and again before every upstream call (cached per host for 60 seconds), so a name whose DNS later changes to an internal address is blocked too.
+- **Abuse limits**: per-key and per-workspace rate limits and quotas; sign-in limited per account and per address; sign-up, password-reset requests and verification resends limited too. Client addresses come from the socket unless `TWYNN_TRUST_PROXY=true`.
 - **Logs** redact authorization headers, cookies and keys; prompts are not logged by the API logger (only the truncated preview in the request log).
 - **Headers**: the web image sends a strict Content-Security-Policy, `X-Frame-Options: DENY`, `nosniff` and a referrer policy.
 - **Validation** at every boundary with zod; request bodies are capped at 4 MB; upstream errors are normalised so raw provider bodies are never echoed.
 
-Known gaps: sign-up reveals whether an email is already registered (mitigated by the per-address limit), and there is no email verification or password reset yet.
+Known gap: sign-up still reveals whether an email is already registered, because a new account is signed in immediately (soft verification). It is mitigated by the per-address sign-up limit, and the message points to password reset. Closing it fully would mean blocking sign-in until the email is verified.
 
 ## Configuration
 

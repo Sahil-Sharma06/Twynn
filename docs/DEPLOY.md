@@ -29,13 +29,17 @@ openssl rand -base64 32       # TWYNN_ENCRYPTION_KEY
 
 Optional settings and their defaults:
 
-| Variable                                 | Default | Meaning                                                         |
-| ---------------------------------------- | ------- | --------------------------------------------------------------- |
-| `TWYNN_KEY_RATE_LIMIT_PER_MINUTE`        | 600     | Requests per minute per gateway key (0 disables)                |
-| `TWYNN_PLAYGROUND_RATE_LIMIT_PER_MINUTE` | 30      | Playground requests per minute per workspace                    |
-| `TWYNN_DAILY_REQUEST_QUOTA`              | 0       | Requests per workspace per UTC day (0 means unlimited)          |
-| `TWYNN_LOG_RETENTION_DAYS`               | 90      | Request logs (and evaluation labels) older than this are purged |
-| `TWYNN_LOG_LEVEL`                        | info    | `fatal` … `trace`                                               |
+| Variable                                 | Default                         | Meaning                                                         |
+| ---------------------------------------- | ------------------------------- | --------------------------------------------------------------- |
+| `TWYNN_KEY_RATE_LIMIT_PER_MINUTE`        | 600                             | Requests per minute per gateway key (0 disables)                |
+| `TWYNN_PLAYGROUND_RATE_LIMIT_PER_MINUTE` | 30                              | Playground requests per minute per workspace                    |
+| `TWYNN_DAILY_REQUEST_QUOTA`              | 0                               | Requests per workspace per UTC day (0 means unlimited)          |
+| `TWYNN_LOG_RETENTION_DAYS`               | 90                              | Request logs (and evaluation labels) older than this are purged |
+| `TWYNN_LOG_LEVEL`                        | info                            | `fatal` … `trace`                                               |
+| `TWYNN_RESEND_API_KEY`                   | (unset)                         | Resend API key for verification and password-reset emails       |
+| `TWYNN_EMAIL_FROM`                       | `Twynn <onboarding@resend.dev>` | Sender address; its domain must be verified in Resend           |
+
+> **Email.** Without `TWYNN_RESEND_API_KEY`, production sends no email: new users still see the reminder to verify but the email never arrives (they keep full access), and password reset links are never delivered. Create a key at resend.com, verify your sending domain, and set `TWYNN_EMAIL_FROM` to an address on it. Resend's `onboarding@resend.dev` sender only delivers to your own Resend account address, so it is for testing only.
 
 > **Keep `TWYNN_ENCRYPTION_KEY` safe and stable.** It encrypts every workspace's provider key. If it is lost or changed, stored provider keys cannot be decrypted and every workspace must re-enter its provider key.
 

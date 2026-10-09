@@ -82,6 +82,23 @@
   font-size: var(--text-sm);
 }
 
+.banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-2) max(var(--space-4), calc((100% - var(--content-width)) / 2));
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-sunken);
+  font-size: var(--text-sm);
+}
+
+.banner strong {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
 .main {
   max-width: var(--content-width);
   margin: 0 auto;

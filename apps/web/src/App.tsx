@@ -11,6 +11,15 @@ import { queryClient } from './lib/queries';
 // Route-level code splitting: each page is its own chunk.
 const Landing = lazy(() => import('./pages/landing/Landing').then((m) => ({ default: m.Landing })));
 const Login = lazy(() => import('./pages/auth/Login').then((m) => ({ default: m.Login })));
+const ForgotPassword = lazy(() =>
+  import('./pages/auth/ForgotPassword').then((m) => ({ default: m.ForgotPassword })),
+);
+const ResetPassword = lazy(() =>
+  import('./pages/auth/ResetPassword').then((m) => ({ default: m.ResetPassword })),
+);
+const VerifyEmail = lazy(() =>
+  import('./pages/auth/VerifyEmail').then((m) => ({ default: m.VerifyEmail })),
+);
 const Signup = lazy(() => import('./pages/auth/Signup').then((m) => ({ default: m.Signup })));
 const Onboarding = lazy(() =>
   import('./pages/onboarding/Onboarding').then((m) => ({ default: m.Onboarding })),
@@ -51,6 +60,9 @@ export const routes: RouteObject[] = [
     ],
   },
   { path: '/login', element: page(<Login />) },
+  { path: '/forgot-password', element: page(<ForgotPassword />) },
+  { path: '/reset-password', element: page(<ResetPassword />) },
+  { path: '/verify-email', element: page(<VerifyEmail />) },
   // Development-only component catalogue; the branch is removed from production builds.
   ...(import.meta.env.DEV
     ? [

@@ -62,6 +62,7 @@ export function Login() {
           autoComplete="current-password"
           required
           error={errors.password}
+          hint={<Link to="/forgot-password">Forgot your password?</Link>}
         />
         <Button type="submit" size="lg" loading={login.isPending}>
           Log in

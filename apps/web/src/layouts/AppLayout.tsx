@@ -4,7 +4,8 @@ import { PRODUCT_NAME } from '@twynn/shared';
 import { Button } from '../components/Button';
 import { Logo } from '../components/Logo';
 import { ThemeToggle } from '../components/ThemeToggle';
-import { useLogout, useSession } from '../lib/queries';
+import { useLogout, useResendVerification, useSession } from '../lib/queries';
+import { useToast } from '../components/Toast';
 import styles from './AppLayout.module.css';
 
 const navLink = styles.navLink ?? '';
@@ -19,6 +20,33 @@ const NAV: Array<{ to: string; label: string; end?: boolean }> = [
   { to: '/app/docs', label: 'Docs' },
   { to: '/onboarding', label: 'Setup' },
 ];
+
+/** Shown until the email is verified; access is never blocked (soft verification). */
+function VerifyBanner({ email }: { email: string }) {
+  const resend = useResendVerification();
+  const toast = useToast();
+  return (
+    <div className={styles.banner} role="region" aria-label="Email verification">
+      <p>
+        Verify <strong>{email}</strong> using the link we emailed you.
+      </p>
+      <Button
+        variant="secondary"
+        size="sm"
+        loading={resend.isPending}
+        onClick={() =>
+          resend.mutate(undefined, {
+            onSuccess: () => toast(`Verification email sent to ${email}`, 'success'),
+            onError: (err) =>
+              toast(err instanceof Error ? err.message : 'Could not send the email', 'danger'),
+          })
+        }
+      >
+        Send it again
+      </Button>
+    </div>
+  );
+}
 
 export function AppLayout() {
   const { data: session } = useSession();
@@ -60,6 +88,7 @@ export function AppLayout() {
           </Button>
         </div>
       </header>
+      {session && !session.user.emailVerified && <VerifyBanner email={session.user.email} />}
       <main id="main" className={styles.main}>
         {/* Keyed by route so each page fades and rises in; instant under reduced motion. */}
         <div key={pathname} className={styles.transition}>

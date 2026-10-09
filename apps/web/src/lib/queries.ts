@@ -308,3 +308,35 @@ export function useLabelPair() {
     },
   });
 }
+
+export function useVerifyEmail() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (token: string) =>
+      api<undefined>('/auth/verify-email', { method: 'POST', body: { token } }),
+    onSuccess: () => client.invalidateQueries({ queryKey: keys.session }),
+  });
+}
+
+export function useResendVerification() {
+  return useMutation({
+    mutationFn: () => api<undefined>('/auth/verify-email/resend', { method: 'POST', body: {} }),
+  });
+}
+
+export function useRequestPasswordReset() {
+  return useMutation({
+    mutationFn: (email: string) =>
+      api<undefined>('/auth/password-reset', { method: 'POST', body: { email } }),
+  });
+}
+
+export function useConfirmPasswordReset() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { token: string; password: string }) =>
+      api<undefined>('/auth/password-reset/confirm', { method: 'POST', body: input }),
+    // Every session was signed out, including this browser's.
+    onSuccess: () => client.setQueryData(keys.session, null),
+  });
+}
