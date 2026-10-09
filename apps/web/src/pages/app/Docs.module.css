@@ -26,8 +26,9 @@
 }
 
 .del {
-  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
-  color: var(--color-danger);
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--color-border-strong);
 }
 
 .del::before {
@@ -36,13 +37,12 @@
 }
 
 .add {
-  background: color-mix(in srgb, var(--color-twin) 12%, transparent);
-  color: var(--color-twin);
+  background: var(--color-accent-soft);
 }
 
 .add::before {
   content: '+ ';
-  opacity: 0.6;
+  color: var(--color-accent);
 }
 
 .diffNote {

@@ -7,4 +7,5 @@ coverage/
 .DS_Store
 test-results/
 playwright-report/
-docs/
+# Internal, not for publishing
+docs/developer-guide.md
